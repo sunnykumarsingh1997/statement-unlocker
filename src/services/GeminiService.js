@@ -105,5 +105,29 @@ export const GeminiService = {
 
         // Default fallback
         return `[Generated ${type} based on: "${prompt}"]`;
+    },
+
+    parseStatement: async (file) => {
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Mock data extraction
+        const transactions = [
+            { id: 1, date: '2024-03-15', merchant: 'Uber Rides', amount: '24.50', category: 'Travel', notes: 'Airport ride' },
+            { id: 2, date: '2024-03-16', merchant: 'Starbucks', amount: '5.75', category: 'Meals', notes: 'Coffee' },
+            { id: 3, date: '2024-03-18', merchant: 'AWS Services', amount: '145.00', category: 'Software', notes: 'Monthly hosting' },
+            { id: 4, date: '2024-03-20', merchant: 'Delta Airlines', amount: '450.00', category: 'Travel', notes: 'Conference flight' },
+            { id: 5, date: '2024-03-22', merchant: 'WeWork', amount: '350.00', category: 'Office', notes: 'Desk rental' },
+        ];
+
+        const totalSpend = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0).toFixed(2);
+
+        return {
+            transactions,
+            summary: {
+                totalSpend,
+                topCategory: 'Travel'
+            }
+        };
     }
 };
