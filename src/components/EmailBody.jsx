@@ -8,17 +8,22 @@ const EmailBody = () => {
 
     return (
         <div className={`email-body ${device}`}>
-            {content.messages.map((msg) => (
-                <div key={msg.id} className={`message-item ${msg.isMe ? 'is-me' : ''}`}>
-                    <div className="message-meta">
-                        {device === 'android' && !msg.isMe && (
-                            // Android often hides sender name in thread if it's the same, but for now we show it or just body
-                            // Actually in the reference image, it's just the body. The header handles the first sender.
-                            // But for multi-thread, we need to distinguish.
-                            // Let's keep it simple: just the body text, maybe a small header if it's a long thread.
-                            <span className="thread-sender">{msg.sender}</span>
-                        )}
-                        <span className="thread-time">{msg.time}</span>
+            {content.messages.map((msg, index) => (
+                <div key={msg.id} className={`message-item ${msg.isMe ? 'is-me' : ''}`} style={{ marginBottom: '20px', paddingBottom: '10px', borderBottom: index < content.messages.length - 1 ? '1px solid #eee' : 'none' }}>
+                    {/* Message Header for Multi-thread */}
+                    <div className="message-header" style={{ marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#202124' }}>
+                                {msg.sender || 'Unknown'}
+                                <span style={{ fontWeight: 'normal', color: '#5f6368', fontSize: '12px', marginLeft: '5px' }}>
+                                    &lt;{msg.senderEmail || ''}&gt;
+                                </span>
+                            </span>
+                            <span style={{ fontSize: '12px', color: '#5f6368' }}>{msg.time}</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                            to {msg.receiver || 'me'}
+                        </div>
                     </div>
 
                     <div className="email-content-text">
