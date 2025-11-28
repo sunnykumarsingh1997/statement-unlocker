@@ -31,9 +31,7 @@ import refund2Icon from "./assets/ref2-icon.png";
 import iciciIcon from "./assets/Dispute-Forms/ICICI/p1.jpg";
 import axisIcon from "./assets/Dispute-Forms/Axis/axis.jpg";
 import yesbankIcon from "./assets/Dispute-Forms/YESBANK/yes1.jpg";
-import { useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { Analytics } from "@vercel/analytics/react"
+
 
 import "./InvoiceGenerator.css";
 import Stripe from "./refundInvoices/stripe/Stripe";
