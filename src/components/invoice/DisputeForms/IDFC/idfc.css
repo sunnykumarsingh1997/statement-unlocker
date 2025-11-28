@@ -1,0 +1,130 @@
+.idfc-form{
+    width: 1242px;
+    margin: auto;
+    position: relative;
+}
+.idfc-font{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 20px;
+}
+.idfc-date{
+    position: absolute;
+    top: 243px;
+    left: 910px;
+}
+.date-box-0{
+
+    width: 17px;
+}
+.date-box-1{
+
+    width: 29px;
+    text-align: center;
+}
+.date-box-2{
+
+    width: 23px;
+    text-align: center;
+    margin-left: 18px;
+}
+.date-box-3{
+
+    width: 23px;
+    text-align: center;
+}
+.date-box-4{
+
+    width: 23px;
+    text-align: center;
+    margin-left: 27px;
+}
+.date-box-5{
+
+    width: 25px;
+    text-align: center;
+}
+.date-box-6{
+
+    width: 28px;
+    text-align: center;
+}
+.date-box-7{
+
+    width: 23px;
+    text-align: center;
+}
+.idfc-date-2{
+    position: absolute;
+    top: 2440px;
+    left: 455px;
+}
+.idfc-card{
+    position: absolute;
+    top: 337px;
+    left: 200px;
+    display: flex;
+    gap: 185px;
+}
+.idfc-c-1{
+    letter-spacing: 13px;
+}
+.idfc-c-2{
+    letter-spacing: 13px;
+}
+.idfc-place{
+    position: absolute;
+    top: 2440px;
+    left: 160px;
+}
+.idfc-phone{
+    position: absolute;
+    top: 2440px;
+    left: 920px;
+    letter-spacing: 13px;
+}
+.idfc-name{
+    position: absolute;
+    top: 2590px;
+    left: 810px;
+    font-family: "Dancing Script", cursive;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+  font-size: 30px;
+}
+
+.idfc-transaction-1{
+    position: absolute;
+    display: flex;
+    top: 520px;
+    left: 200px;
+
+}
+.idfc-transaction-2{
+    position: absolute;
+    display: flex;
+    top: 580px;
+    left: 200px;
+}
+.idfc-transaction-3{
+    position: absolute;
+    display: flex;
+    top: 630px;
+    left: 200px;
+}
+
+.idfc-tra-date{
+    width: 200px;
+    text-align: center;
+
+}
+.idfc-merchant{
+    width: 390px;
+    text-align: center;
+
+}
+.idfc-amount{
+    width: 170px;
+    text-align: center;
+
+}

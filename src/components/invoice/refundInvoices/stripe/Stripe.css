@@ -1,0 +1,312 @@
+body {
+    background: whitesmoke;
+  }
+  
+  * {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .stripe-invoice {
+    background: white;
+    padding-bottom: 40px;
+    border-radius: 10px;
+    
+    margin-left: auto;
+    margin-right: auto;
+    width: fit-content;
+    
+  }
+  
+  .title {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    text-align: center;
+    color: #32325d;
+    font-size: 24px;
+    line-height: 32px;
+    background-color: white;
+  }
+  .invoice-number {
+    color: #8898aa;
+    font-size: 15px;
+    line-height: 18px;
+    text-align: center;
+    margin-top: 8px;
+  }
+  
+  .info {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Ubuntu, sans-serif;
+    mso-line-height-rule: exactly;
+    vertical-align: middle;
+    color: #8898aa;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  .inner-info {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Ubuntu, sans-serif;
+    mso-line-height-rule: exactly;
+    vertical-align: middle;
+    color: #525f7f;
+    font-size: 15px;
+    line-height: 24px;
+    white-space: nowrap;
+  }
+  .top-info {
+    width: fit-content;
+  }
+  
+  .img {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    vertical-align: text-bottom;
+  }
+  
+  .info1-top {
+    display: flex;
+    gap: 20px;
+  
+    align-items: center;
+    justify-content: center;
+  
+    margin-top: 25px;
+  }
+  
+  .flex {
+    display: flex;
+  }
+  
+  td {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 1px;
+    line-height: 1px;
+    max-height: 1px;
+    mso-line-height-rule: exactly;
+    background-color: #e6ebf1;
+    height: 1;
+  }
+  
+  .horizontal-line {
+    width: 400px; /* Set the width */
+    height: 1.6px; /* Set the thickness */
+    background-color: #e6ebf1; /* Set the color */
+    border: none; /* Remove default border */
+  }
+  
+  .hr-center {
+    display: flex;
+    justify-content: center;
+    margin-top: 23px;
+    margin-bottom: 23px;
+  }
+  .hr-middle {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .paragraph {
+    width: 400px;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    color: #414552 !important;
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica",
+      sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 24px;
+    display: flex;
+    justify-content: center;
+  }
+  .link-title {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    color: #625afa !important;
+    font-weight: bold;
+    text-decoration: none;
+  }
+  
+  .center-it {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .summary-line {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    font-weight: bold;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    color: #687385;
+    font-size: 12px;
+    margin-left: 50px;
+    margin-top: 25px;
+    margin-bottom: 25px;
+  }
+  
+  .amount-box {
+    background-color: #f6f9fc;
+    width: 400px;
+    height: fit-content;
+    border-radius: 10px;
+    margin: auto;
+    padding: 10px 15px;
+  }
+  
+  .s-text {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Ubuntu, sans-serif;
+    mso-line-height-rule: exactly;
+    vertical-align: middle;
+    color: #525f7f;
+    font-size: 15px;
+    line-height: 24px;
+    width: 100%;
+  }
+  
+  .s-amount {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Ubuntu, sans-serif;
+    mso-line-height-rule: exactly;
+    vertical-align: middle;
+    color: #525f7f;
+    font-size: 15px;
+    line-height: 24px;
+    width: 100px
+  }
+  
+  .m-10 {
+    margin-top: 7px;
+    display: flex;
+  }
+  .m-20 {
+    margin-top: 30px;
+  }
+  .stripe-m-x {
+    margin-top: 20px;
+  }
+  
+  strong {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Ubuntu, sans-serif;
+    mso-line-height-rule: exactly;
+    vertical-align: middle;
+    color: #525f7f;
+    font-size: 15px;
+    line-height: 24px;
+  }
+  
+  .justify-end {
+    justify-content: space-between;
+  }
+  
+  .p2 {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    width: 472px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Ubuntu, sans-serif;
+    mso-line-height-rule: exactly;
+    vertical-align: middle;
+    color: #8898aa;
+    font-size: 10 px;
+    line-height: 16px;
+    width: 375px;
+  }
+  .link-2 {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    color: #556cd6;
+    text-decoration: none;
+  }
+  
+  .details {
+    padding: 30px;
+    border-radius: 10px;
+    background-color: #f6f9fc;
+    border: 2px solid black;
+    transition: 0.2s;
+    width: 500px;
+  }
+  .details:hover {
+    box-shadow: rgba(0, 0, 0, 0.245) 5px 5px 0 0;
+    margin-top: 3px;
+  }
+  
+  .gap-10 {
+    gap: 15px;
+  }
+  
+  button {
+    margin-top: 10px;
+    background-color: springgreen;
+    color: rgb(0, 0, 0);
+    font-weight: bold;
+  }
+  button:hover {
+    background-color: rgb(1, 87, 44);
+    color: springgreen;
+  }
+  
+  .m-x-2 {
+    margin-right: 5px;
+  }
+  
+  .editor {
+    
+    margin-top: 20px;
+    gap: 7px;
+    height: fit-content;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  

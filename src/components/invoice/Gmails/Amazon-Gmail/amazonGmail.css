@@ -1,0 +1,110 @@
+.amazon-mail-font{
+    font-family: Arial, Helvetica, sans-serif;
+    color: black;
+    font-weight: 400;
+}
+.amazon-gmail-form{
+    width: 816px;
+    height: 2200px;
+    background-color: WHITE;
+
+    margin: auto;
+    padding: 30px;
+    color: black;
+}
+.amazon-spacer{
+    width: 100px;
+    height: 20px;
+}
+
+.amazon-mail-small{
+    font-size: 12px;
+}
+.amazon-mail-flex-gap{
+    gap: 200px;
+}
+.bold{
+    font-weight: bold;
+}
+.justify-between{
+    justify-content: space-between;
+}
+.align-center{
+    align-items: center;
+}
+.amazon-margin-2{
+    margin-top: 7px;
+    margin-bottom: 7px;
+}
+
+.amazon-mail-inner-content{
+    margin-left: 30px;
+    margin-right: 30px;
+    width: 750px;
+}
+
+.amazon-mail-hr-dark{
+    background-color: #9a9a9a;
+    width: 752px;
+    height: 2px;
+}
+.amazon-mail-hr-light{
+    background-color: #eeeeee;
+    width: 752px;
+    height: 2px;
+}
+.amazon-mail-email{
+    font-size: 12px;
+}
+
+.amazon-gmail-from-to{
+    height: 18px;
+    justify-content: space-between;
+}
+
+.amazon-gmail-amazonAeLogo{
+    width: 130px;
+}
+
+.amazon-gmail-content{
+    padding: 45px;
+    position: relative;
+}
+.amazon-gmail-hello{
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.amazon-gmail-greeting{
+ margin-bottom: 20px;
+}
+
+.amazon-gmail-m-20{
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.amazon-gmail-item{
+    padding: 15px;
+}
+
+.amazon-gmail-very-small-font{
+    font-size: 10px;
+    text-align: center;
+}
+
+.amazon-gmail-page-2{
+    margin-top: 40px;
+    margin-bottom: 20px;
+}
+
+.amazon-gmail-amazonLogo{
+    width: 100px;
+    position: absolute;
+    bottom: -20px;
+    left: 20px;
+}
+.amazon-gmail-bottom{
+    position: absolute;
+    bottom: -400px;
+}

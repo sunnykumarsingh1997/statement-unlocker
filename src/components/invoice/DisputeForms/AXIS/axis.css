@@ -1,0 +1,282 @@
+.axis-form{
+    width: fit-content;
+    margin: auto;
+}
+.axis-form{
+    position: relative;
+}
+.axis-font{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 19px;
+    font-weight: 500;
+}
+.tick{
+    position: absolute;
+    top: 270px;
+    left: 385px;
+}
+.axis-name{
+    position: absolute;
+    top: 325px;
+    left: 378px;
+    display: flex;
+    width: 800px;
+    justify-content: space-around;
+}
+.axis-std{
+    position: absolute;
+    top: 356px;
+    left: 385px;
+    letter-spacing: 15px;
+}
+.axis-number{
+    position: absolute;
+    top: 356px;
+    left: 497px;
+    letter-spacing: 15px;
+   
+}
+.axis-email{
+    position: absolute;
+    top: 390px;
+    left: 380px;
+    display: flex;
+    width: 800px;
+    justify-content: space-around;
+    
+}
+
+.axis-name-box-1{
+
+width: 28px;
+}
+.axis-name-box-2{
+    
+    width: 24px;
+    text-align: center;
+}
+.axis-name-box-3{
+    width: 27px;
+    text-align: center;
+    
+}
+.axis-name-box-4{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-5{
+    width: 25px;
+    text-align: center;
+    
+}
+.axis-name-box-6{
+    width: 25px;
+    text-align: center;
+    
+}
+.axis-name-box-7{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-8{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-9{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-10{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-11{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-12{
+    width: 27px;
+    text-align: center;
+    
+}
+.axis-name-box-13{
+    width: 28px;
+    text-align: center;
+    
+}
+.axis-name-box-14{
+    width: 28px;
+    text-align: center;
+    
+}
+.axis-name-box-15{
+    width: 23px;
+    text-align: center;
+    
+}
+.axis-name-box-16{
+    width: 23px;
+    text-align: center;
+    
+}
+.axis-name-box-17{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-18{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-19{
+    width: 27px;
+    text-align: center;
+    
+}
+.axis-name-box-20{
+    width: 27px;
+    text-align: center;
+    
+}
+.axis-name-box-21{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-22{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-23{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-24{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-25{
+    width: 24px;
+    text-align: center;
+    
+}
+.axis-name-box-26{
+    width: 26px;
+    text-align: center;
+    
+}
+.axis-name-box-27{
+    width: 27px;
+    text-align: center;
+    
+}
+.axis-name-box-28{
+    width: 27px;
+    text-align: center;
+}
+.axis-name-box-29{
+    width: 27px;
+    text-align: center;
+}
+.axis-name-box-30{
+    width: 27px;
+    text-align: center;
+}
+.axis-card-num1{
+    position: absolute;
+    top: 426px;
+    left: 390px;
+    display: flex;
+    gap: 16px;
+}
+.axis-card-num2{
+    position: absolute;
+    top: 426px;
+    left: 520px;
+    display: flex;
+    gap: 16px;
+}
+.axis-card-num3{
+    position: absolute;
+    top: 426px;
+    left: 657px;
+    display: flex;
+    gap: 16px;
+}
+.axis-card-num4{
+    position: absolute;
+    top: 426px;
+    left: 790px;
+    display: flex;
+    gap: 16px;
+}
+.axis-transaction-1{
+    position: absolute;
+    display: flex;
+    top: 607px;
+    left: 130px;
+}
+.axis-transaction-2{
+    position: absolute;
+    display: flex;
+    top: 640px;
+    left: 130px;
+}
+.axis-transaction-3{
+    position: absolute;
+    display: flex;
+    top: 675px;
+    left: 130px;
+}
+.axis-transaction-date{
+    width: 140px;
+    text-align: center;
+    letter-spacing: 13px;
+    padding-left: 2px;
+}
+.axis-merchant{
+    width: 300px;
+    text-align: center;
+}
+.axis-amount{
+    width: 300px;
+    text-align: center;
+}
+
+.axis-today-date{
+    position: absolute;
+    bottom: 117px;
+    left: 125px;
+    letter-spacing: 17px;
+}
+.axis-place{
+    position: absolute;
+    bottom: 117px;
+    left: 500px;
+}
+.axis-sig{
+    position: absolute;
+    bottom: 150px;
+    right: 100px;
+    font-family: "Dancing Script", cursive;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-style: normal;
+    font-size: 16px;
+}
+.img-tick img{
+    position: absolute;
+    width: 25px;
+    top: 1000px;
+    left: 90px;
+}

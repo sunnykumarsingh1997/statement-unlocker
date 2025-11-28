@@ -1,0 +1,111 @@
+.indusind-form{
+    width: 1240px;
+    margin: auto;
+    position: relative;
+}
+.indus-font{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 20px;
+}
+.indus-card{
+    position: absolute;
+    top: 265px;
+    left: 245px;
+    letter-spacing: 13px;
+}
+.indus-name{
+    position: absolute;
+    top: 300px;
+    left: 245px;
+    display: flex;
+    gap: 12px;
+}
+.indus-name-box-3{
+    width: 5px;
+}
+.indus-name-box-7{
+    width: 10px;
+}
+.indus-name-box-8{
+    width: 5px;
+}
+.indus-name-box-21{
+    width: 15px;
+}
+.indus-name-box-27{
+    width: 15px;
+}
+.indus-tick img{
+    width: 25px;
+}
+.indus-tick{
+    position: absolute;
+    top: 959px;
+    left: 75px;
+}
+.indus-date{
+    position:absolute;
+    bottom: 392px;
+    left: 115px;
+    letter-spacing: 14px;
+}
+.indus-sig{
+    position: absolute;
+    bottom: 362px;
+    right: 100px;
+    font-family: "Dancing Script", cursive;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-style: normal;
+    font-size: 20px;
+}
+
+.indus-transaction-1{
+    position: absolute;
+    display: flex;
+    top: 380px;
+    left: 130px;
+
+}
+.indus-transaction-2{
+    position: absolute;
+    display: flex;
+    top: 410px;
+    left: 130px;
+
+}
+.indus-transaction-3{
+    position: absolute;
+    display: flex;
+    top: 440px;
+    left: 130px;
+
+}
+.indus-transaction-4{
+    position: absolute;
+    display: flex;
+    top: 470px;
+    left: 130px;
+}
+.indus-transaction-5{
+    position: absolute;
+    display: flex;
+    top: 499px;
+    left: 130px;
+}
+.indus-tra-date{
+    width: 185px;
+    text-align: center;
+}
+.indus-merchant{
+    width: 479px;
+    text-align: center;
+}
+.indus-amount-1{
+    width: 150px;
+    text-align: center;
+}
+.indus-amount-2{
+    width: 150px;
+    text-align: center;
+}

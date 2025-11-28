@@ -1,0 +1,10 @@
+footer{
+    background: springgreen;
+    color: black;
+    text-align: center;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    margin-top: 10px;
+    cursor:default;
+
+    width: 100%;
+}

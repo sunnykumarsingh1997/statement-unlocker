@@ -1,0 +1,134 @@
+.input-fields{
+    border: 2px solid #9a9494;
+    padding: 10px 10px;
+    border-radius: 10px;
+    margin: 10px 10px;
+}
+
+.input-fields div{
+    margin: 2px;
+}
+.input{
+    border-radius: 10px;
+    padding: 0 5px;
+    font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+.icici-font{
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 21px;
+    font-weight: 500;
+}
+
+.icici-invoice{
+    position: relative;
+    width: fit-content;
+    height: fit-content;
+}
+
+.icici-name{
+    position: absolute;
+    top: 1445px;
+    left: 125px;
+}
+.icici-phone{
+    position:absolute;
+    top: 1492px;
+    left: 160px;
+}
+.icici-date{
+    position:absolute;
+    top: 1535px;
+    left: 110px;
+}
+.sig-1{
+    position:absolute;
+    top: 1580px;
+    left: 920px;
+}
+.icici-dancing-script-sig {
+    font-family: "Dancing Script", cursive;
+    font-optical-sizing: auto;
+    font-weight: 800;
+    font-style: normal;
+    font-size: 30px;
+}
+.icici-card-num1{
+    position: absolute;
+    top: 270px;
+    left: 180px;
+    display: flex;
+    gap: 50px;
+}
+.icici-card-num2{
+    position: absolute;
+    top: 270px;
+    left: 430px;
+    display: flex;
+    gap: 50px;
+}
+.icici-card-num3{
+    position: absolute;
+    top: 270px;
+    left: 657px;
+    display: flex;
+    gap: 50px;
+}
+.icici-card-num4{
+    position: absolute;
+    top: 270px;
+    left: 900px;
+    display: flex;
+    gap: 50px;
+}
+
+.icici-transaction-1{
+    position: absolute;
+    display: flex;
+    top: 510px;
+    left: 31px;
+}
+.icici-transaction-2{
+    position: absolute;
+    display: flex;
+    top: 543px;
+    left: 31px;
+}
+.icici-transaction-3{
+    position: absolute;
+    display: flex;
+    top: 580px;
+    left: 31px;
+}
+.icici-transaction-4{
+    position: absolute;
+    display: flex;
+    top: 610px;
+    left: 31px;
+}
+.icici-transaction-date{
+    width: 190px;
+    text-align: center;
+}
+.icici-merchant{
+    width: 565px;
+    text-align: center;
+}
+.icici-amount{
+    width: 220px;
+    text-align: center;
+}
+
+.icici-ends{
+    justify-content: space-between;
+    width: 336px;
+}
+.icici-hr-light{
+    border-bottom: 2px solid #9a9494;
+    
+    width: 366px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    display: flex;
+    justify-content:space-between;
+    margin-bottom: 5px;
+  }

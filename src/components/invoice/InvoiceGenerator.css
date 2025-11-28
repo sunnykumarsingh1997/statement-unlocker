@@ -1,0 +1,88 @@
+.invoice-generator-wrapper select {
+    background: springgreen;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.invoice-generator-wrapper select option {
+    background: rgba(0, 255, 128, 0.327);
+    font-weight: bold;
+}
+
+.invoice-generator-wrapper .app-header {
+    background: #FF6F61;
+    width: 100%;
+    height: 50px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.invoice-generator-wrapper .logo {
+    font-size: 50px;
+    font-weight: bold;
+    text-shadow: 2px 2px 2px gray;
+    color: white;
+    cursor: default;
+}
+
+.invoice-generator-wrapper .app-icon {
+    width: fit-content;
+    height: fit-content;
+    padding-bottom: 3px;
+}
+
+.invoice-generator-wrapper .dispute-forms {
+    margin-top: 0;
+    margin: 10px 10px;
+    padding: 10px 10px;
+}
+
+.invoice-generator-wrapper .refund-invoice {
+    margin-top: 0;
+    margin: 10px 10px;
+    padding: 10px 10px;
+    height: fit-content;
+}
+
+.invoice-generator-wrapper .app-title {
+    font-weight: bold;
+    border-bottom: 2px solid black;
+    margin-bottom: 4px;
+}
+
+.invoice-generator-wrapper .Header-button {
+    margin-top: 0px;
+    font-weight: bold;
+}
+
+.invoice-generator-wrapper .h-scroll {
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.invoice-generator-wrapper .back-btn {
+    position: fixed;
+    right: 10px;
+    bottom: 30px;
+}
+
+.invoice-generator-wrapper .btn-yellow {
+    background-color: #FFC107;
+    color: #000000;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.invoice-generator-wrapper .btn-yellow:hover {
+    background-color: #E0A800;
+    color: #000000;
+}

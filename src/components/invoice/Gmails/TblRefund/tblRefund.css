@@ -1,0 +1,136 @@
+.tbl-invoice-body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+    color: black;
+}
+
+.tbl-invoice-container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tbl-invoice-header {
+    font-size: 25px;
+
+    text-align: center;
+    margin-bottom: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 600px;
+}
+
+.tbl-invoice-section {
+    margin-bottom: 20px;
+    margin-left: 100px;
+}
+
+.tbl-invoice-section-header {
+    font-size: 16px;
+    margin-bottom: 10px;
+
+}
+
+.tbl-invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tbl-invoice-table th, .tbl-invoice-table td {
+    padding: 8px;
+    text-align: left;
+}
+
+.tbl-invoice-info {
+    display: flex;
+    justify-content: space-between;
+}
+
+.tbl-invoice-info div {
+    width: 48%;
+}
+
+.tbl-invoice-info div p {
+    margin: 4px 0;
+    font-size: 14px;
+}
+
+.tbl-invoice-total {
+    font-weight: bold;
+}
+
+.tbl-invoice-footer {
+    font-size: 14px;
+    text-align: left;
+    margin-top: 20px;
+}
+
+.tbl-invoice-footer a {
+    text-decoration: none;
+}
+
+.tbl-invoice-logo{
+    width: fit-content;
+    margin: auto;
+    margin-top: 35px;
+    margin-bottom: 35px;
+}
+.tbl-invoice-logo img{
+    width: 100px;
+}
+
+.tbl-invoice-hr{
+    width: 600px;
+    height: 5px;
+    border-bottom: 2px solid #dbdbdb;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+.tbl-invoice-bold{
+    font-weight: bold;
+    color: black;
+}
+
+.tbl-invoice-totals-left{
+    width: 300px;
+
+
+}
+.tbl-invoice-totals-left div{
+    margin-top: 7px;
+}
+.tbl-invoice-totals-right{
+    width: 300px;
+    margin-top: 7px;
+}
+
+.tbl-invoice-section-amounts{
+    width: 600px;
+    justify-content: space-between;
+}
+.tbl-invoice-header-course{
+    width: 400px;
+}
+.tbl-invoice-margin-left-10{
+    margin-left: 30px;
+}
+.tbl-invoice-copyright{
+    color: #6a6e7c;
+    text-align: center;
+    font-size: 13px;
+}
+.tbl-invoice-tblColor{
+    color: #09a59a;
+    text-decoration: underline;
+}
+.tbl-invoice-link-color{
+    color: #1155cc;
+    text-decoration: underline;
+}
