@@ -3,6 +3,7 @@ import "./refTwo.css"
 import html2pdf from "html2pdf.js";
 import Preview from "../../Components/Preview";
 import GeminiFillButton from "../../../GeminiFillButton";
+import { addToHistory } from "../../../../utils/history";
 
 export default function RefTwo() {
   const invoiceRef = useRef();
@@ -51,6 +52,8 @@ export default function RefTwo() {
       .from(element)
       .set(options)
       .save();
+
+    addToHistory('Invoice Download', `Refund Invoice (Ref2) - ${billToName} - $${amount}`);
   };
 
   return (

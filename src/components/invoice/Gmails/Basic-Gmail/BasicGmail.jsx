@@ -4,6 +4,7 @@ import gmailLogo from "../../assets/gmail-logo.png";
 import html2pdf from "html2pdf.js";
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from '../../../../utils/history';
 
 export default function BasicGmail() {
 
@@ -23,6 +24,8 @@ export default function BasicGmail() {
       .from(element)
       .set(options)
       .save();
+
+    addToHistory('Invoice Download', `Basic Gmail - ${subject} - ${merchant}`);
   };
 
   const [contentA, setContentA] = useState();
@@ -158,15 +161,15 @@ export default function BasicGmail() {
           <div className="amazon-mail-hr-dark"></div>
           <div className="amazon-mail-hr-light"></div>
 
-          <div class="amazon-gmail-from-to flex ">
+          <div className="amazon-gmail-from-to flex ">
             <p>
               <b>{buyer}</b> &lt;{buyerMail}&gt;
             </p>
-            <p class="amazon-gmail-date">
+            <p className="amazon-gmail-date">
               {mailSentDate}
             </p>
           </div>
-          <p class="amazon-gmail-to-address">To: {merchantMail}</p>
+          <p className="amazon-gmail-to-address">To: {merchantMail}</p>
 
           <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap' }}>
             {contentA}
@@ -175,15 +178,15 @@ export default function BasicGmail() {
           <div className="amazon-mail-hr-dark"></div>
           <div className="amazon-mail-hr-light"></div>
 
-          <div class="amazon-gmail-from-to flex ">
+          <div className="amazon-gmail-from-to flex ">
             <p>
               <b>{merchant}</b> &lt;{merchantMail}&gt;
             </p>
-            <p class="amazon-gmail-date">
+            <p className="amazon-gmail-date">
               {mailRecieveDate}
             </p>
           </div>
-          <p class="amazon-gmail-to-address">To: {buyerMail}</p>
+          <p className="amazon-gmail-to-address">To: {buyerMail}</p>
 
           <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap' }}>
             {contentB}

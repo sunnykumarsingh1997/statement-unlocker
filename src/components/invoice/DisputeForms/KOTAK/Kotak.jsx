@@ -5,6 +5,7 @@ import kotakPg2 from '../../assets/Dispute-Forms/KOTAK/kotak-pg2.jpg';
 import tick from '../../assets/tick.png';
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from "../../../../utils/history";
 import './kotak.css';
 
 export default function Kotak() {
@@ -47,6 +48,7 @@ export default function Kotak() {
       jsPDF: { unit: 'in', format: [8.27, 11.69], orientation: 'portrait' }
     };
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `Kotak Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleName = (e) => setName(e.target.value);

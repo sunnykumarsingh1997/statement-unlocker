@@ -1,4 +1,4 @@
-import { React, useState } from 'react';
+import React, { useState } from 'react';
 import html2canvas from "html2canvas"; // Import html2canvas
 import Preview from '../../Components/Preview';
 import header from "../../assets/header-proof.png";
@@ -7,6 +7,7 @@ import amexLogo from "../../assets/amex.png";
 import visaLogo from "../../assets/visa.png";
 import "./Stripe.css"
 import GeminiFillButton from "../../../GeminiFillButton";
+import { addToHistory } from "../../../../utils/history";
 
 const Stripe = () => {
   const [project, setProject] = useState("Procandi");
@@ -51,27 +52,26 @@ const Stripe = () => {
   const trxTimeHandler = (element) => setTrxTime(element.target.value);
 
   const handleclick = () => {
-    incrementTime();
-    const randomnumber = Math.floor(Math.random() * 5) + 1;
-    setsec(sec + randomnumber);
-    setinvoice(invoice + 1);
-  };
-
-  // Function to download as JPG
-  const downloadJPG = () => {
     const invoiceDiv = document.getElementById("invoice");
-    html2canvas(invoiceDiv, { scale: 2 }).then((canvas) => {
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      const link = document.createElement("a");
-      link.href = imgData;
-      link.download = "invoice.jpg";
-      link.click();
-    });
+    if (invoiceDiv) {
+      html2canvas(invoiceDiv, { scale: 2 }).then((canvas) => {
+        const imgData = canvas.toDataURL("image/jpeg", 1.0);
+        const link = document.createElement("a");
+        link.href = imgData;
+        link.download = "invoice.jpg";
+        link.click();
+
+        // Save to history
+        addToHistory('Invoice Download', `Stripe Invoice - ${project} - ${amount} ${currency}`);
+      });
+    } else {
+      console.error("Invoice element not found");
+    }
   };
 
-  const initialTime = new Date();
-  initialTime.setHours(10, 15, 22);
-  const [hours, sethours] = useState(initialTime);
+  // const initialTime = new Date();
+  // initialTime.setHours(10, 15, 22);
+  const [hours, sethours] = useState(new Date());
 
   const incrementTime = () => {
     const randomSeconds = Math.floor(Math.random() * 5) + 1;
@@ -80,6 +80,7 @@ const Stripe = () => {
   };
 
   const formatTime = (date) => {
+    if (!(date instanceof Date) || isNaN(date)) return "00:00:00";
     return date.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -133,9 +134,8 @@ const Stripe = () => {
               <input type="text" onChange={invoicehandeller} value={invoice} />
             </div>
             <button onClick={handleclick} className="m-x-2">
-              Next
+              Download Invoice
             </button>
-            <button onClick={downloadJPG}>Download Invoice</button>
           </div>
           <div className="details">
             <div className="flex m-10 gap-10">
@@ -182,7 +182,7 @@ const Stripe = () => {
         </div>
 
         {/* Invoice Section Moved Below Editor */}
-        <Preview title="PREVIEW STRIPE REFUND FORM" />
+        {/* <Preview title="PREVIEW STRIPE REFUND FORM" /> */}
 
         <div className="stripe-invoice" id="invoice">
           <img src={header} alt="" />

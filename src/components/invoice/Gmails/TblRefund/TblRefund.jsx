@@ -3,6 +3,7 @@ import html2pdf from 'html2pdf.js';
 // import TBLlogo from '../../assets/teachable-logo.png'; // Logo not found
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from '../../../../utils/history';
 import './tblRefund.css';
 
 export default function TblRefund() {
@@ -33,6 +34,7 @@ export default function TblRefund() {
             jsPDF: { unit: 'in', format: [8.5, 11], orientation: 'portrait' }
         };
         html2pdf().from(element).set(options).save();
+        addToHistory('Invoice Download', `Tbl Refund Invoice - ${name} - ${amount}`);
     };
 
     const handleFillAll = (jsonString) => {

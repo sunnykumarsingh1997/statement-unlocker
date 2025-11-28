@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
-import background from '../assets/background2.jpg';
-import logo from '../assets/codershive_dp.png';
+import { supabase } from '../supabaseClient';
 
 const Login = ({ onLogin }) => {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (username === 'codershive' && password === 'Coders#1234') {
-            onLogin();
+        setLoading(true);
+        setError('');
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            setError(error.message);
+            setLoading(false);
         } else {
-            setError('Invalid username or password');
+            // onLogin will be handled by the auth state listener in App.jsx, 
+            // but we can call it here for immediate feedback if needed, 
+            // though App.jsx should handle the redirection.
+            // For now, we'll rely on App.jsx's listener.
         }
     };
 
@@ -34,15 +46,15 @@ const Login = ({ onLogin }) => {
                 maxWidth: '400px',
                 textAlign: 'center'
             }}>
-                <img src={logo} alt="Codershive Logo" style={{ width: '80px', marginBottom: '20px' }} />
+                {/* Logo placeholder if needed */}
                 <h2 style={{ margin: '0 0 20px', color: '#333' }}>Welcome Back</h2>
 
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <input
-                        type="text"
-                        placeholder="Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         style={{
                             padding: '12px',
                             borderRadius: '8px',
@@ -67,19 +79,20 @@ const Login = ({ onLogin }) => {
 
                     <button
                         type="submit"
+                        disabled={loading}
                         style={{
                             padding: '12px',
                             borderRadius: '8px',
                             border: 'none',
-                            background: '#007bff',
+                            background: loading ? '#ccc' : '#007bff',
                             color: 'white',
                             fontSize: '16px',
                             fontWeight: 'bold',
-                            cursor: 'pointer',
+                            cursor: loading ? 'not-allowed' : 'pointer',
                             transition: 'background 0.3s'
                         }}
                     >
-                        Login
+                        {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
             </div>

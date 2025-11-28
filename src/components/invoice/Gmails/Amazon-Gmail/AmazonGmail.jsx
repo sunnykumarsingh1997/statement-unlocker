@@ -8,6 +8,7 @@ import gmailLogo from "../../assets/gmail-logo.png";
 import Preview from "../../Components/Preview";
 
 import GeminiFillButton from "../../../GeminiFillButton";
+import { addToHistory } from "../../../../utils/history";
 
 export default function AmazonGmail() {
   const invoiceRef = useRef();
@@ -23,6 +24,7 @@ export default function AmazonGmail() {
     };
 
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `Amazon Gmail - ${name} - ${amount}`);
   };
 
   const [name, setName] = useState("XXXX");

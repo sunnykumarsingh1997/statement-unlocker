@@ -6,6 +6,7 @@ import gmailLogo from "../../assets/gmail-logo.png";
 import Preview from "../../Components/Preview";
 
 import GeminiFillButton from "../../../GeminiFillButton";
+import { addToHistory } from "../../../../utils/history";
 
 export default function AmazonES() {
   const invoiceRef = useRef();
@@ -21,6 +22,7 @@ export default function AmazonES() {
     };
 
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `Amazon ES - ${name} - ${amount}`);
   };
 
   const [name, setName] = useState("XXXX");

@@ -1,21 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { FaCloudUploadAlt, FaHistory, FaFileDownload } from 'react-icons/fa';
+import { supabase } from '../supabaseClient';
 
 const HistoryManager = () => {
     const [history, setHistory] = useState([]);
     const [backupStatus, setBackupStatus] = useState('');
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const savedHistory = JSON.parse(localStorage.getItem('invoiceHistory') || '[]');
-        setHistory(savedHistory);
+        fetchHistory();
     }, []);
 
+    const fetchHistory = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data, error } = await supabase
+                    .from('history')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                setHistory(data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching history:', error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleBackup = () => {
-        setBackupStatus('Backing up...');
+        // Since data is already in Supabase, this button could trigger a download of the data 
+        // or just be a visual confirmation that data is synced.
+        setBackupStatus('Syncing...');
         setTimeout(() => {
-            setBackupStatus('Backup successful! All files saved to cloud.');
+            setBackupStatus('All data is safely stored in the cloud.');
             setTimeout(() => setBackupStatus(''), 3000);
-        }, 1500);
+        }, 1000);
     };
 
     return (
@@ -31,14 +54,14 @@ const HistoryManager = () => {
                         alignItems: 'center',
                         gap: '8px',
                         padding: '10px 20px',
-                        background: '#007bff',
+                        background: '#28a745',
                         color: 'white',
                         border: 'none',
                         borderRadius: '8px',
                         cursor: 'pointer'
                     }}
                 >
-                    <FaCloudUploadAlt /> Backup to Cloud
+                    <FaCloudUploadAlt /> Cloud Synced
                 </button>
             </div>
 
@@ -56,7 +79,9 @@ const HistoryManager = () => {
             )}
 
             <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                {history.length === 0 ? (
+                {loading ? (
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>Loading history...</div>
+                ) : history.length === 0 ? (
                     <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
                         No recent history found. Generate some invoices or emails to see them here.
                     </div>
@@ -71,8 +96,11 @@ const HistoryManager = () => {
                                 alignItems: 'center'
                             }}>
                                 <div>
-                                    <div style={{ fontWeight: 'bold' }}>{item.type}</div>
-                                    <div style={{ fontSize: '12px', color: '#888' }}>{new Date(item.date).toLocaleString()}</div>
+                                    <div style={{ fontWeight: 'bold' }}>{item.action_type}</div>
+                                    <div style={{ fontSize: '12px', color: '#888' }}>
+                                        {new Date(item.created_at).toLocaleString()}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#555' }}>{item.details}</div>
                                 </div>
                                 <div style={{ color: '#007bff' }}>
                                     <FaFileDownload />

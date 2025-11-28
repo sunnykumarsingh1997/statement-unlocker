@@ -4,6 +4,7 @@ import yesbankPg1 from '../../assets/Dispute-Forms/YESBANK/yes1.jpg';
 import yesbankPg2 from '../../assets/Dispute-Forms/YESBANK/yes2.jpg';
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from "../../../../utils/history";
 import './yesbank.css';
 
 export default function YesBank() {
@@ -46,6 +47,7 @@ export default function YesBank() {
       jsPDF: { unit: 'in', format: [8.27, 11.69], orientation: 'portrait' }
     };
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `Yes Bank Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleName = (e) => setName(e.target.value);

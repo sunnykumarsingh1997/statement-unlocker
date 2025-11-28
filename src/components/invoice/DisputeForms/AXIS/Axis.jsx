@@ -6,6 +6,7 @@ import tick from "../../assets/tick.png"
 import html2pdf from "html2pdf.js";
 import { motion, useScroll, useTransform } from "framer-motion";
 import GeminiFillButton from "../../../../components/GeminiFillButton";
+import { addToHistory } from "../../../../utils/history";
 
 export default function Axis() {
   const [name, setName] = useState("")
@@ -44,6 +45,7 @@ export default function Axis() {
       .from(element)
       .set(options)
       .save();
+    addToHistory('Invoice Download', `Axis Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleFillAll = (jsonString) => {

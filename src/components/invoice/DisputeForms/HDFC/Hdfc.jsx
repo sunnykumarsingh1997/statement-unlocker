@@ -5,6 +5,7 @@ import Tick from "../../assets/tick.png";
 import html2pdf from "html2pdf.js";
 import Preview from "../../Components/Preview";
 import GeminiFillButton from "../../../../components/GeminiFillButton";
+import { addToHistory } from "../../../../utils/history";
 
 export default function Hdfc() {
   const [name, setName] = useState("");
@@ -87,6 +88,7 @@ export default function Hdfc() {
     };
 
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `HDFC Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleFillAll = (jsonString) => {

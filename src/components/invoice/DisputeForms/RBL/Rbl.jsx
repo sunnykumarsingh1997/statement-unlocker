@@ -4,6 +4,7 @@ import rblpg1 from '../../assets/Dispute-Forms/RBL/RBL_pg1.jpg';
 import rblpg2 from '../../assets/Dispute-Forms/RBL/RBL_pg2.jpg';
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from "../../../../utils/history";
 import './rbl.css';
 
 export default function RBL() {
@@ -46,6 +47,7 @@ export default function RBL() {
       jsPDF: { unit: 'in', format: [8.27, 11.69], orientation: 'portrait' }
     };
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `RBL Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleName = (e) => setName(e.target.value);

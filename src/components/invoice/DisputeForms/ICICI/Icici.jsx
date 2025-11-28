@@ -4,6 +4,7 @@ import p1 from '../../assets/Dispute-Forms/ICICI/p1.jpg';
 import p2 from '../../assets/Dispute-Forms/ICICI/p2.jpg';
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from "../../../../utils/history";
 import './icici.css';
 
 export default function Icici() {
@@ -41,6 +42,7 @@ export default function Icici() {
             jsPDF: { unit: 'in', format: [8.27, 11.69], orientation: 'portrait' }
         };
         html2pdf().from(element).set(options).save();
+        addToHistory('Invoice Download', `ICICI Dispute Form - ${name} - ${amount1}`);
     };
 
     const handleName = (e) => setName(e.target.value);

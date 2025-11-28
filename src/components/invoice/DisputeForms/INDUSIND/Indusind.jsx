@@ -4,6 +4,7 @@ import indusPg1 from '../../assets/Dispute-Forms/INDUSIND/indus_pg1.jpg';
 import tick from '../../assets/tick.png';
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from "../../../../utils/history";
 import './indusind.css';
 
 export default function Indusind() {
@@ -44,6 +45,7 @@ export default function Indusind() {
       jsPDF: { unit: 'in', format: [8.27, 11.69], orientation: 'portrait' }
     };
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `Indusind Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleName = (e) => setName(e.target.value);

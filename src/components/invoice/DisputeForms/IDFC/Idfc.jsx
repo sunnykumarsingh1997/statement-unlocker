@@ -4,6 +4,7 @@ import idfcPg1 from '../../assets/Dispute-Forms/IDFC/IDFC_pg1.jpg';
 import idfcPg2 from '../../assets/Dispute-Forms/IDFC/IDFC_pg2.jpg';
 import Preview from '../../Components/Preview';
 import GeminiFillButton from '../../../GeminiFillButton';
+import { addToHistory } from "../../../../utils/history";
 import './idfc.css';
 
 export default function Idfc() {
@@ -36,6 +37,7 @@ export default function Idfc() {
       jsPDF: { unit: 'in', format: [8.27, 11.69], orientation: 'portrait' }
     };
     html2pdf().from(element).set(options).save();
+    addToHistory('Invoice Download', `IDFC Dispute Form - ${name} - ${amount1}`);
   };
 
   const handleName = (e) => setName(e.target.value);

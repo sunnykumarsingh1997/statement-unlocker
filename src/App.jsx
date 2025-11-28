@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { supabase } from './supabaseClient';
 import { EmailProvider } from './context/EmailContext';
 import Layout from './components/Layout';
 import InvoiceGenerator from './components/invoice/InvoiceGenerator';
@@ -9,13 +10,33 @@ import HistoryManager from './components/HistoryManager';
 import './App.css';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
+  }
 
   return (
     <Router>
       <div className="app-root">
-        {!isAuthenticated ? (
-          <Login onLogin={() => setIsAuthenticated(true)} />
+        {!session ? (
+          <Login />
         ) : (
           <>
             <Navigation />
