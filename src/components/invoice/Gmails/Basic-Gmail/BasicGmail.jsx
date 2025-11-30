@@ -7,8 +7,6 @@ import GeminiFillButton from '../../../GeminiFillButton';
 import { addToHistory } from '../../../../utils/history';
 
 export default function BasicGmail() {
-
-
   const invoiceRef = useRef();
   const handleDownload = () => {
     const element = invoiceRef.current;
@@ -28,43 +26,46 @@ export default function BasicGmail() {
     addToHistory('Invoice Download', `Basic Gmail - ${subject} - ${merchant}`);
   };
 
-  const [contentA, setContentA] = useState();
-  const [contentB, setContentB] = useState();
-  const [merchant, setMerchant] = useState();
-  const [buyer, setBuyer] = useState();
-  const [merchantMail, setMerchantMail] = useState();
-  const [buyerMail, setBuyerMail] = useState();
-  const [subject, setSubject] = useState();
-  const [mailSentDate, setMailSentDate] = useState();
-  const [mailRecieveDate, setMailRecieveDate] = useState();
+  const [messages, setMessages] = useState([
+    { id: 1, sender: 'buyer', content: '', date: '' },
+    { id: 2, sender: 'merchant', content: '', date: '' }
+  ]);
+  const [merchant, setMerchant] = useState('');
+  const [buyer, setBuyer] = useState('');
+  const [merchantMail, setMerchantMail] = useState('');
+  const [buyerMail, setBuyerMail] = useState('');
+  const [subject, setSubject] = useState('');
 
-  const handleContentA = (e) => {
-    setContentA(e.target.value)
-  }
-  const handleContentB = (e) => {
-    setContentB(e.target.value)
-  }
-  const handlemerchant = (e) => {
-    setMerchant(e.target.value)
-  }
-  const handlebuyer = (e) => {
-    setBuyer(e.target.value)
-  }
-  const handlemerchantMail = (e) => {
-    setMerchantMail(e.target.value)
-  }
-  const handlebuyerMail = (e) => {
-    setBuyerMail(e.target.value)
-  }
-  const handlesubject = (e) => {
-    setSubject(e.target.value)
-  }
-  const handlemailSentDate = (e) => {
-    setMailSentDate(e.target.value)
-  }
-  const handlemailRecieveDate = (e) => {
-    setMailRecieveDate(e.target.value)
-  }
+  const handlemerchant = (e) => setMerchant(e.target.value);
+  const handlebuyer = (e) => setBuyer(e.target.value);
+  const handlemerchantMail = (e) => setMerchantMail(e.target.value);
+  const handlebuyerMail = (e) => setBuyerMail(e.target.value);
+  const handlesubject = (e) => setSubject(e.target.value);
+
+  const handleMessageChange = (id, field, value) => {
+    setMessages(prevMessages => prevMessages.map(msg =>
+      msg.id === id ? { ...msg, [field]: value } : msg
+    ));
+  };
+
+  const handleAddMessage = () => {
+    const lastMsg = messages[messages.length - 1];
+    const newSender = lastMsg && lastMsg.sender === 'buyer' ? 'merchant' : 'buyer';
+    setMessages([
+      ...messages,
+      {
+        id: Date.now(),
+        sender: newSender,
+        content: '',
+        date: ''
+      }
+    ]);
+  };
+
+  const handleDeleteMessage = (id) => {
+    if (messages.length <= 1) return;
+    setMessages(messages.filter(msg => msg.id !== id));
+  };
 
   const handleFillAll = (jsonString) => {
     try {
@@ -74,10 +75,23 @@ export default function BasicGmail() {
       setMerchantMail(data.merchant1 ? "support@" + data.merchant1.toLowerCase() + ".com" : "support@amazon.com");
       setBuyerMail(data.email || "john.doe@gmail.com");
       setSubject(data.reason ? "Re: " + data.reason : "Refund Request");
-      setMailSentDate(new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }));
-      setMailRecieveDate(new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }));
-      setContentA(data.contentA || "Hello,\n\nI would like to request a refund for my recent order. The item arrived damaged and I am not satisfied with the quality.\n\nPlease let me know the next steps.\n\nThanks,\nJohn");
-      setContentB(data.contentB || "Hi John,\n\nWe are sorry to hear that. We have processed your refund request. You should see the amount credited to your account within 5-7 business days.\n\nLet us know if you need anything else.\n\nBest regards,\nSupport Team");
+
+      const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true });
+
+      setMessages([
+        {
+          id: 1,
+          sender: 'buyer',
+          content: data.contentA || "Hello,\n\nI would like to request a refund for my recent order. The item arrived damaged and I am not satisfied with the quality.\n\nPlease let me know the next steps.\n\nThanks,\nJohn",
+          date: dateStr
+        },
+        {
+          id: 2,
+          sender: 'merchant',
+          content: data.contentB || "Hi John,\n\nWe are sorry to hear that. We have processed your refund request. You should see the amount credited to your account within 5-7 business days.\n\nLet us know if you need anything else.\n\nBest regards,\nSupport Team",
+          date: dateStr
+        }
+      ]);
     } catch (e) {
       console.error("Failed to parse AI response", e);
     }
@@ -90,46 +104,67 @@ export default function BasicGmail() {
           <span><strong>AI Auto-Fill:</strong> Generate a realistic email conversation.</span>
           <GeminiFillButton type="invoice_basic" onFill={handleFillAll} />
         </div>
-        <textarea
-          value={contentA}
-          onChange={handleContentA}
-          rows="4"
-          cols="50"
-        />
-        <textarea
-          value={contentB}
-          onChange={handleContentB}
-          rows="4"
-          cols="50"
-        />
+
+        {messages.map((msg, index) => (
+          <div key={msg.id} style={{ marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <label><strong>Message {index + 1} ({msg.sender.toUpperCase()})</strong></label>
+              {messages.length > 1 && (
+                <button
+                  onClick={() => handleDeleteMessage(msg.id)}
+                  style={{ background: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            <textarea
+              value={msg.content || ''}
+              onChange={(e) => handleMessageChange(msg.id, 'content', e.target.value)}
+              rows="4"
+              cols="50"
+              placeholder="Message content..."
+              style={{ width: '100%', padding: '8px', fontFamily: 'inherit' }}
+            />
+            <div className="flex icici-ends gap-10" style={{ marginTop: '8px' }}>
+              <div>DATE: </div>
+              <input
+                className="input"
+                type="text"
+                value={msg.date || ''}
+                onChange={(e) => handleMessageChange(msg.id, 'date', e.target.value)}
+                placeholder="Date..."
+              />
+            </div>
+          </div>
+        ))}
+
+        <button
+          onClick={handleAddMessage}
+          style={{ marginBottom: '20px', padding: '8px 16px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          + ADD MESSAGE
+        </button>
+
         <div className="flex icici-ends gap-10">
           <div>MERCHANT NAME: </div>
-          <input className="input" type="text" onChange={handlemerchant} />
+          <input className="input" type="text" onChange={handlemerchant} value={merchant} />
         </div>
         <div className="flex icici-ends gap-10">
           <div>MERCHANT EMAIL: </div>
-          <input className="input" type="text" onChange={handlemerchantMail} />
+          <input className="input" type="text" onChange={handlemerchantMail} value={merchantMail} />
         </div>
         <div className="flex icici-ends gap-10">
           <div>BUYER NAME: </div>
-          <input className="input" type="text" onChange={handlebuyer} />
+          <input className="input" type="text" onChange={handlebuyer} value={buyer} />
         </div>
         <div className="flex icici-ends gap-10">
           <div>BUYER EMAIL: </div>
-          <input className="input" type="text" onChange={handlebuyerMail} />
-        </div>
-
-        <div className="flex icici-ends gap-10">
-          <div>MAIL SENT DATE: </div>
-          <input className="input" type="text" onChange={handlemailSentDate} />
-        </div>
-        <div className="flex icici-ends gap-10">
-          <div>MAIL RECIEVE DATE: </div>
-          <input className="input" type="text" onChange={handlemailRecieveDate} />
+          <input className="input" type="text" onChange={handlebuyerMail} value={buyerMail} />
         </div>
         <div className="flex icici-ends gap-10">
           <div>SUBJECT: </div>
-          <input className="input" type="text" onChange={handlesubject} />
+          <input className="input" type="text" onChange={handlesubject} value={subject} />
         </div>
         <button onClick={handleDownload}>DOWNLOAD</button>
       </div>
@@ -137,8 +172,6 @@ export default function BasicGmail() {
       <Preview title="PREVIEW EMAIL CONVERSATION" />
 
       <div className="basicgmail-form amazon-mail-font" ref={invoiceRef}>
-
-
         <div className="amazon-spacer"></div>
 
         <div className="amazon-mail-inner-content">
@@ -153,44 +186,36 @@ export default function BasicGmail() {
           <div className="amazon-mail-hr-dark"></div>
           <div className="amazon-mail-hr-light"></div>
           <div className="amazon-margin-2">
-            <div className="amazon-mail-heading-1 bold ">
+            <div className="amazon-mail-heading-1 bold" style={{ textAlign: 'left' }}>
               {subject}
             </div>
-            <div className="amazon-mail-small amazon-mail-font">2 messages</div>
-          </div>
-          <div className="amazon-mail-hr-dark"></div>
-          <div className="amazon-mail-hr-light"></div>
-
-          <div className="amazon-gmail-from-to flex ">
-            <p>
-              <b>{buyer}</b> &lt;{buyerMail}&gt;
-            </p>
-            <p className="amazon-gmail-date">
-              {mailSentDate}
-            </p>
-          </div>
-          <p className="amazon-gmail-to-address">To: {merchantMail}</p>
-
-          <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap' }}>
-            {contentA}
+            <div className="amazon-mail-small amazon-mail-font" style={{ textAlign: 'left' }}>{messages.length} messages</div>
           </div>
 
-          <div className="amazon-mail-hr-dark"></div>
-          <div className="amazon-mail-hr-light"></div>
+          {messages.map((msg, index) => (
+            <React.Fragment key={msg.id}>
+              {index > 0 && (
+                <>
+                  <div className="amazon-mail-hr-dark"></div>
+                  <div className="amazon-mail-hr-light"></div>
+                </>
+              )}
 
-          <div className="amazon-gmail-from-to flex ">
-            <p>
-              <b>{merchant}</b> &lt;{merchantMail}&gt;
-            </p>
-            <p className="amazon-gmail-date">
-              {mailRecieveDate}
-            </p>
-          </div>
-          <p className="amazon-gmail-to-address">To: {buyerMail}</p>
+              <div className="amazon-gmail-from-to flex" style={{ justifyContent: 'space-between' }}>
+                <p style={{ margin: 0 }}>
+                  <b>{msg.sender === 'buyer' ? buyer : merchant}</b> &lt;{msg.sender === 'buyer' ? buyerMail : merchantMail}&gt;
+                </p>
+                <p className="amazon-gmail-date" style={{ margin: 0 }}>
+                  {msg.date}
+                </p>
+              </div>
+              <p className="amazon-gmail-to-address" style={{ margin: '0 0 10px 0' }}>To: {msg.sender === 'buyer' ? merchantMail : buyerMail}</p>
 
-          <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap' }}>
-            {contentB}
-          </div>
+              <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap', textAlign: 'left' }}>
+                {msg.content}
+              </div>
+            </React.Fragment>
+          ))}
 
         </div>
       </div>
