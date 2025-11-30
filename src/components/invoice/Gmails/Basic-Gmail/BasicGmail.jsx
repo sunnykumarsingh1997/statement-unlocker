@@ -192,6 +192,9 @@ export default function BasicGmail() {
             <div className="amazon-mail-small amazon-mail-font" style={{ textAlign: 'left' }}>{messages.length} messages</div>
           </div>
 
+          <div className="amazon-mail-hr-dark"></div>
+          <div className="amazon-mail-hr-light"></div>
+
           {messages.map((msg, index) => (
             <React.Fragment key={msg.id}>
               {index > 0 && (
@@ -201,17 +204,19 @@ export default function BasicGmail() {
                 </>
               )}
 
-              <div className="amazon-gmail-from-to flex" style={{ justifyContent: 'space-between' }}>
-                <p style={{ margin: 0 }}>
-                  <b>{msg.sender === 'buyer' ? buyer : merchant}</b> &lt;{msg.sender === 'buyer' ? buyerMail : merchantMail}&gt;
-                </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, paddingLeft: 0, textAlign: 'left' }}>
+                    <b>{msg.sender === 'buyer' ? buyer : merchant}</b> &lt;{msg.sender === 'buyer' ? buyerMail : merchantMail}&gt;
+                  </p>
+                  <p className="amazon-gmail-to-address" style={{ margin: '4px 0 10px 0', paddingLeft: 0, textAlign: 'left' }}>To: {msg.sender === 'buyer' ? merchantMail : buyerMail}</p>
+                </div>
                 <p className="amazon-gmail-date" style={{ margin: 0 }}>
                   {msg.date}
                 </p>
               </div>
-              <p className="amazon-gmail-to-address" style={{ margin: '0 0 10px 0' }}>To: {msg.sender === 'buyer' ? merchantMail : buyerMail}</p>
 
-              <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap', textAlign: 'left' }}>
+              <div className="amazon-gmail-content" style={{ whiteSpace: 'pre-wrap', textAlign: 'left', padding: '0', marginLeft: 0 }}>
                 {msg.content}
               </div>
             </React.Fragment>
