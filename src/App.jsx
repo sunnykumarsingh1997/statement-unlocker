@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { EmailProvider } from './context/EmailContext';
 import Layout from './components/Layout';
 import InvoiceGenerator from './components/invoice/InvoiceGenerator';
-import StatementsReader from './components/StatementsReader';
+import BankStatementUnlocker from './components/BankStatementUnlocker';
 import Navigation from './components/Navigation';
 import Login from './components/Login';
 import HistoryManager from './components/HistoryManager';
@@ -48,7 +48,7 @@ function App() {
                 </EmailProvider>
               } />
               <Route path="/invoice" element={<InvoiceGenerator />} />
-              <Route path="/statements" element={<StatementsReader />} />
+              <Route path="/statements" element={<BankStatementUnlocker />} />
               <Route path="/history" element={<HistoryManager />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
