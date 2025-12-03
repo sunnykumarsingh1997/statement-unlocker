@@ -13,23 +13,17 @@
             <p class="subtitle">Unlock and upload password-protected bank statements to Paperless-ngx</p>
         </header>
 
-        <main>
-            <!-- Password Manager Section -->
-            <section class="password-section">
-                <h2>🔑 Password Manager</h2>
-                <p class="section-description">Manage your password list (one password per line)</p>
-                <div class="password-controls">
-                    <textarea id="passwordTextarea" rows="8" placeholder="Enter passwords, one per line..."></textarea>
-                    <div class="button-group">
-                        <button id="loadPasswordsBtn" class="btn btn-secondary">Load Passwords</button>
-                        <button id="savePasswordsBtn" class="btn btn-primary">Save Passwords</button>
-                    </div>
-                    <div id="passwordStatus" class="status-message"></div>
-                </div>
-            </section>
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="upload">📤 Upload</button>
+            <button class="tab-btn" data-tab="clients">👥 Manage Clients</button>
+            <button class="tab-btn" data-tab="passwords">🔑 Passwords</button>
+            <button class="tab-btn" data-tab="guide">📖 User Guide</button>
+        </nav>
 
-            <!-- File Upload Section -->
-            <section class="upload-section">
+        <main>
+            <!-- Upload Tab -->
+            <section id="upload-tab" class="tab-content active">
                 <h2>📤 Upload PDF Files</h2>
                 <p class="section-description">Drag and drop multiple PDF files or click to select</p>
                 
@@ -52,21 +46,212 @@
                     <button id="uploadBtn" class="btn btn-primary btn-large" disabled>Process & Upload Files</button>
                     <button id="clearBtn" class="btn btn-secondary" disabled>Clear Files</button>
                 </div>
+
+                <!-- Results Section -->
+                <div id="resultsSection" class="results-section" style="display: none;">
+                    <h3>📊 Processing Results</h3>
+                    <div id="resultsContainer" class="results-container"></div>
+                </div>
             </section>
 
-            <!-- Results Section -->
-            <section id="resultsSection" class="results-section" style="display: none;">
-                <h2>📊 Processing Results</h2>
-                <div id="resultsContainer" class="results-container"></div>
+            <!-- Clients Tab -->
+            <section id="clients-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>👥 Manage Clients</h2>
+                    <div class="header-actions">
+                        <button id="syncPaperlessBtn" class="btn btn-secondary">🔄 Sync to Paperless</button>
+                        <button id="addClientBtn" class="btn btn-primary">+ Add Client</button>
+                    </div>
+                </div>
+                <p class="section-description">Configure clients for automatic owner detection. The match pattern (account number) is searched in PDFs.</p>
+                
+                <div id="syncStatus" class="status-message"></div>
+                
+                <div id="clientsTable" class="clients-table-container">
+                    <table class="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Color</th>
+                                <th>Name</th>
+                                <th>Match Pattern</th>
+                                <th>Synced</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody">
+                            <!-- Clients will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div id="noClients" class="no-clients">
+                        <p>No clients configured yet. Click "Add Client" to get started.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Passwords Tab -->
+            <section id="passwords-tab" class="tab-content">
+                <h2>🔑 Password Manager</h2>
+                <p class="section-description">Manage your password list for unlocking PDFs (one password per line)</p>
+                <div class="password-controls">
+                    <textarea id="passwordTextarea" rows="10" placeholder="Enter passwords, one per line..."></textarea>
+                    <div class="button-group">
+                        <button id="loadPasswordsBtn" class="btn btn-secondary">Load Passwords</button>
+                        <button id="savePasswordsBtn" class="btn btn-primary">Save Passwords</button>
+                    </div>
+                    <div id="passwordStatus" class="status-message"></div>
+                </div>
+            </section>
+
+            <!-- User Guide Tab -->
+            <section id="guide-tab" class="tab-content">
+                <h2>📖 User Guide</h2>
+                <p class="section-description">Learn how to use the Paperless Gateway Middleware</p>
+                
+                <div class="guide-content">
+                    <div class="guide-section">
+                        <h3>🚀 Getting Started</h3>
+                        <p>This application helps you unlock password-protected bank statement PDFs, automatically rename them with client information and billing period, and upload them directly to your Paperless-ngx instance.</p>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>📋 Step 1: Set Up Passwords</h3>
+                        <ol>
+                            <li>Go to the <strong>Passwords</strong> tab</li>
+                            <li>Add all your bank statement passwords (one per line)</li>
+                            <li>Common formats include: DOB (DDMMYYYY), PAN numbers, custom bank passwords</li>
+                            <li>Click <strong>Save Passwords</strong></li>
+                        </ol>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>👥 Step 2: Configure Clients</h3>
+                        <ol>
+                            <li>Go to the <strong>Manage Clients</strong> tab</li>
+                            <li>Click <strong>+ Add Client</strong></li>
+                            <li>Enter the client's name (e.g., "Rahul Sharma")</li>
+                            <li>Enter a <strong>Match Pattern</strong> - this is typically the account number or a unique identifier found in their statements</li>
+                            <li>Choose a tag color for easy identification in Paperless</li>
+                            <li>Click <strong>Save Client</strong></li>
+                        </ol>
+                        <div class="guide-tip">
+                            <strong>💡 Tip:</strong> Open a bank statement PDF, find a unique identifier like the last 6 digits of the account number, and use that as the match pattern.
+                        </div>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>🔄 Step 3: Sync to Paperless</h3>
+                        <ol>
+                            <li>After adding clients, click <strong>Sync to Paperless</strong></li>
+                            <li>This creates tags (e.g., "Client: Rahul Sharma") in your Paperless instance</li>
+                            <li>It also creates a "Bank" correspondent for all bank statements</li>
+                            <li>The sync status shows whether each client's tag was created</li>
+                        </ol>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>📤 Step 4: Upload PDFs</h3>
+                        <ol>
+                            <li>Go to the <strong>Upload</strong> tab</li>
+                            <li>Drag and drop your PDF files (or click to browse)</li>
+                            <li>You can upload multiple files at once</li>
+                            <li>Click <strong>Process & Upload Files</strong></li>
+                        </ol>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>⚙️ What Happens During Processing</h3>
+                        <ol>
+                            <li><strong>Unlock:</strong> Each PDF is decrypted using your password list</li>
+                            <li><strong>Identify Client:</strong> The PDF text is searched for client match patterns</li>
+                            <li><strong>Extract Period:</strong> The billing month/year is extracted from the statement</li>
+                            <li><strong>Rename:</strong> File is renamed to <code>ClientName_YYYY-MM.pdf</code></li>
+                            <li><strong>Upload:</strong> Sent to Paperless with the client's tag and "Bank" correspondent attached</li>
+                        </ol>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>📁 File Naming Format</h3>
+                        <p>Files are automatically renamed using this format:</p>
+                        <code class="code-block">{ClientName}_{Year}-{Month}.pdf</code>
+                        <p><strong>Example:</strong> <code>Rahul_Sharma_2024-03.pdf</code></p>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>❓ Troubleshooting</h3>
+                        <div class="guide-faq">
+                            <div class="faq-item">
+                                <strong>PDF won't unlock?</strong>
+                                <p>Make sure the correct password is in your password list. Try different formats (with/without spaces, uppercase).</p>
+                            </div>
+                            <div class="faq-item">
+                                <strong>Wrong client detected?</strong>
+                                <p>Check your match patterns. Make sure they're unique to each client. Use longer patterns if needed.</p>
+                            </div>
+                            <div class="faq-item">
+                                <strong>Upload failed?</strong>
+                                <p>Verify your Paperless-ngx instance is accessible and the API token is valid.</p>
+                            </div>
+                            <div class="faq-item">
+                                <strong>Wrong date extracted?</strong>
+                                <p>The app looks for statement dates, billing periods, or the latest date in the document. Manual renaming in Paperless may be needed for unusual formats.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guide-section">
+                        <h3>🔗 Integration with Paperless-ngx</h3>
+                        <p>This app integrates with Paperless-ngx using the following:</p>
+                        <ul>
+                            <li><strong>API Endpoint:</strong> <code>/api/documents/post_document/</code></li>
+                            <li><strong>Tags:</strong> Created as "Client: {Name}" with your chosen color</li>
+                            <li><strong>Correspondent:</strong> All uploads use "Bank" as the correspondent</li>
+                            <li><strong>Workflows:</strong> Documents arrive pre-tagged, triggering your Paperless workflows immediately</li>
+                        </ul>
+                    </div>
+                </div>
             </section>
         </main>
 
         <footer>
-            <p>Paperless Gateway Middleware v2.0</p>
+            <p>Paperless Gateway Middleware v3.0</p>
+            <p class="signature">Developed by <a href="mailto:idanielsdev@gmail.com">idanielsdev@gmail.com</a> for CodersHive</p>
+            <p class="signature">For Bugs, Telegram: <a href="https://t.me/winning247365" target="_blank">@winning247365</a></p>
         </footer>
+    </div>
+
+    <!-- Client Modal -->
+    <div id="clientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Client</h3>
+                <button class="modal-close" onclick="closeClientModal()">&times;</button>
+            </div>
+            <form id="clientForm">
+                <input type="hidden" id="clientId">
+                <div class="form-group">
+                    <label for="clientName">Client Name *</label>
+                    <input type="text" id="clientName" placeholder="e.g., Rahul Sharma" required>
+                </div>
+                <div class="form-group">
+                    <label for="matchPattern">Match Pattern (Account Number) *</label>
+                    <input type="text" id="matchPattern" placeholder="e.g., 1234567890" required>
+                    <small>This pattern will be searched in PDF content to identify the client</small>
+                </div>
+                <div class="form-group">
+                    <label for="clientColor">Tag Color</label>
+                    <div class="color-input-group">
+                        <input type="color" id="clientColor" value="#3b82f6">
+                        <input type="text" id="clientColorText" value="#3b82f6" pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeClientModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Client</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>
 </body>
 </html>
-

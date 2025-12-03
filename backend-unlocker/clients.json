@@ -1,0 +1,12 @@
+{
+  "clients": [
+    {
+      "id": "f52708b0-0b4b-4dac-adf5-8863f6d9a81f",
+      "name": "Joy Ghosh",
+      "match_pattern": "799009",
+      "color": "#3b82f6",
+      "tag_id": null,
+      "correspondent_id": null
+    }
+  ]
+}
