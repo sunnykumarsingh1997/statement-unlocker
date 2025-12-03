@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paperless Gateway - PDF Unlocker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 Paperless Gateway</h1>
+            <p class="subtitle">Unlock and upload password-protected bank statements to Paperless-ngx</p>
+        </header>
+
+        <main>
+            <!-- Password Manager Section -->
+            <section class="password-section">
+                <h2>🔑 Password Manager</h2>
+                <p class="section-description">Manage your password list (one password per line)</p>
+                <div class="password-controls">
+                    <textarea id="passwordTextarea" rows="8" placeholder="Enter passwords, one per line..."></textarea>
+                    <div class="button-group">
+                        <button id="loadPasswordsBtn" class="btn btn-secondary">Load Passwords</button>
+                        <button id="savePasswordsBtn" class="btn btn-primary">Save Passwords</button>
+                    </div>
+                    <div id="passwordStatus" class="status-message"></div>
+                </div>
+            </section>
+
+            <!-- File Upload Section -->
+            <section class="upload-section">
+                <h2>📤 Upload PDF Files</h2>
+                <p class="section-description">Drag and drop multiple PDF files or click to select</p>
+                
+                <div id="dropZone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="drop-zone-text">Drop PDF files here or click to browse</p>
+                        <p class="drop-zone-hint">Multiple files supported</p>
+                    </div>
+                    <input type="file" id="fileInput" multiple accept=".pdf" style="display: none;">
+                </div>
+
+                <div id="fileList" class="file-list"></div>
+
+                <div class="upload-controls">
+                    <button id="uploadBtn" class="btn btn-primary btn-large" disabled>Process & Upload Files</button>
+                    <button id="clearBtn" class="btn btn-secondary" disabled>Clear Files</button>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="resultsSection" class="results-section" style="display: none;">
+                <h2>📊 Processing Results</h2>
+                <div id="resultsContainer" class="results-container"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Paperless Gateway Middleware v2.0</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+

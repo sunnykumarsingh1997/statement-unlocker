@@ -1,78 +1,89 @@
 """
-Bank Statement Unlocker - FastAPI Backend
-Unlocks password-protected PDFs and uploads them to Paperless-ngx
+Paperless Gateway Middleware - FastAPI Backend
+Standalone middleware web application for unlocking password-protected PDFs
+and uploading them to Paperless-ngx with intelligent renaming.
 """
 
 import io
 import os
 import re
-from typing import Optional
+from typing import Optional, List, Tuple
 from pathlib import Path
 from datetime import datetime
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Body
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import pikepdf
 import pdfplumber
 import requests
 
 app = FastAPI(
-    title="Bank Statement Unlocker",
-    description="Unlock password-protected PDF files and upload to Paperless-ngx",
-    version="1.0.0"
+    title="Paperless Gateway Middleware",
+    description="Gateway middleware for unlocking password-protected PDFs and uploading to Paperless-ngx",
+    version="2.0.0"
 )
 
-# CORS configuration for React frontend
+# CORS configuration - allow all origins for standalone app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite and CRA defaults
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configuration
-PAPERLESS_URL = "http://84.247.136.87:8000"
-PAPERLESS_TOKEN = os.getenv("PAPERLESS_API_TOKEN")
+# Configuration with defaults
+PAPERLESS_URL = os.getenv("PAPERLESS_URL", "http://84.247.136.87:8000")
+PAPERLESS_TOKEN = os.getenv("PAPERLESS_TOKEN", "bb02a22ccce82096e308469bde1fd85c8d675a66")
 PASSWORDS_FILE = Path(__file__).parent / "passwords.txt"
+STATIC_DIR = Path(__file__).parent / "static"
+
+# Mount static files directory
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Pydantic models
-class Password(BaseModel):
-    password: str
-
 class PasswordUpdate(BaseModel):
-    passwords: list[str]
+    passwords: List[str]
 
 # Bank detection patterns
 BANK_PATTERNS = {
-    'HDFC': ['HDFC Bank', 'hdfc', 'HDFC BANK'],
-    'ICICI': ['ICICI Bank', 'icici', 'ICICI BANK'],
-    'SBI': ['State Bank of India', 'SBI', 'STATE BANK'],
-    'AXIS': ['AXIS Bank', 'axis', 'AXIS BANK'],
-    'KOTAK': ['Kotak Mahindra', 'kotak', 'KOTAK'],
-    'PNB': ['Punjab National Bank', 'PNB'],
-    'BOB': ['Bank of Baroda', 'BOB'],
-    'CANARA': ['Canara Bank', 'canara'],
-    'UNION': ['Union Bank', 'union'],
-    'IDBI': ['IDBI Bank', 'idbi'],
+    'HDFC': ['HDFC Bank', 'hdfc', 'HDFC BANK', 'HDFC BANK LIMITED'],
+    'ICICI': ['ICICI Bank', 'icici', 'ICICI BANK', 'ICICI BANK LIMITED'],
+    'SBI': ['State Bank of India', 'SBI', 'STATE BANK', 'STATE BANK OF INDIA'],
+    'AXIS': ['AXIS Bank', 'axis', 'AXIS BANK', 'AXIS BANK LIMITED'],
+    'KOTAK': ['Kotak Mahindra', 'kotak', 'KOTAK', 'KOTAK MAHINDRA BANK'],
+    'PNB': ['Punjab National Bank', 'PNB', 'PUNJAB NATIONAL BANK'],
+    'BOB': ['Bank of Baroda', 'BOB', 'BANK OF BARODA'],
+    'CANARA': ['Canara Bank', 'canara', 'CANARA BANK'],
+    'UNION': ['Union Bank', 'union', 'UNION BANK OF INDIA'],
+    'IDBI': ['IDBI Bank', 'idbi', 'IDBI BANK'],
+    'IDFC': ['IDFC Bank', 'idfc', 'IDFC FIRST BANK'],
+    'YES': ['YES Bank', 'yes', 'YES BANK'],
+    'RBL': ['RBL Bank', 'rbl', 'RBL BANK'],
+    'INDUSIND': ['IndusInd Bank', 'indusind', 'INDUSIND BANK'],
 }
 
 
-def load_passwords() -> list[str]:
+def load_passwords() -> List[str]:
     """Load passwords from passwords.txt file"""
     if not PASSWORDS_FILE.exists():
         return []
     
-    with open(PASSWORDS_FILE, "r", encoding="utf-8") as f:
-        # Strip whitespace, filter empty lines and comments
-        passwords = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
-    
-    return passwords
+    try:
+        with open(PASSWORDS_FILE, "r", encoding="utf-8") as f:
+            # Strip whitespace, filter empty lines and comments
+            passwords = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+        return passwords
+    except Exception as e:
+        print(f"Error loading passwords: {e}")
+        return []
 
 
-def save_passwords(passwords: list[str]) -> bool:
+def save_passwords(passwords: List[str]) -> bool:
     """Save passwords to passwords.txt file"""
     try:
         with open(PASSWORDS_FILE, "w", encoding="utf-8") as f:
@@ -87,10 +98,11 @@ def save_passwords(passwords: list[str]) -> bool:
         return False
 
 
-def try_unlock_pdf(pdf_bytes: bytes, passwords: list[str]) -> Optional[bytes]:
+def try_unlock_pdf(pdf_bytes: bytes, passwords: List[str]) -> Tuple[Optional[bytes], bool]:
     """
     Try to unlock a PDF using a list of passwords.
-    Returns the unlocked PDF bytes if successful, None otherwise.
+    Returns (unlocked_pdf_bytes, is_unlocked) tuple.
+    If unlocked, returns (bytes, True). If not, returns (original_bytes, False).
     """
     pdf_stream = io.BytesIO(pdf_bytes)
     
@@ -100,11 +112,13 @@ def try_unlock_pdf(pdf_bytes: bytes, passwords: list[str]) -> Optional[bytes]:
             # PDF is already unlocked, return as-is
             output = io.BytesIO()
             pdf.save(output)
-            return output.getvalue()
+            return output.getvalue(), True
     except pikepdf.PasswordError:
         pass  # PDF is locked, try passwords
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid PDF file: {str(e)}")
+        # Invalid PDF, but return original bytes for metadata extraction attempt
+        print(f"Warning: PDF validation error: {e}")
+        return pdf_bytes, False
     
     # Try each password
     for password in passwords:
@@ -114,7 +128,7 @@ def try_unlock_pdf(pdf_bytes: bytes, passwords: list[str]) -> Optional[bytes]:
                 # Successfully unlocked! Create decrypted version
                 output = io.BytesIO()
                 pdf.save(output, encryption=False)  # Save without encryption
-                return output.getvalue()
+                return output.getvalue(), True
         except pikepdf.PasswordError:
             continue  # Wrong password, try next
         except Exception as e:
@@ -122,8 +136,8 @@ def try_unlock_pdf(pdf_bytes: bytes, passwords: list[str]) -> Optional[bytes]:
             print(f"Error trying password: {e}")
             continue
     
-    # No password worked
-    return None
+    # No password worked, return original bytes
+    return pdf_bytes, False
 
 
 def extract_metadata(pdf_bytes: bytes) -> dict:
@@ -146,6 +160,9 @@ def extract_metadata(pdf_bytes: bytes) -> dict:
             # Extract text from first page (usually has all metadata)
             first_page_text = pdf.pages[0].extract_text() or ""
             
+            if not first_page_text:
+                return metadata
+            
             # Detect bank name
             for bank_code, patterns in BANK_PATTERNS.items():
                 for pattern in patterns:
@@ -155,29 +172,36 @@ def extract_metadata(pdf_bytes: bytes) -> dict:
                 if metadata['bank_name'] != 'Unknown':
                     break
             
-            # Extract owner name (usually after "Account Holder" or similar)
+            # Extract owner name (improved patterns)
             name_patterns = [
-                r'Account\s*Holder[:\s]+([A-Z][A-Z\s]+?)(?:\n|\r)',
-                r'Name[:\s]+([A-Z][A-Z\s]+?)(?:\n|\r)',
-                r'Customer\s*Name[:\s]+([A-Z][A-Z\s]+?)(?:\n|\r)',
-                r'^([A-Z][A-Z\s]{10,40})(?:\n|\r)',  # Fallback: capitalized name at start
+                r'Account\s*(?:Holder|Name)[:\s]+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
+                r'Name[:\s]+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
+                r'Customer\s*Name[:\s]+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
+                r'Mr\.?\s+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
+                r'Mrs\.?\s+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
+                r'Ms\.?\s+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
+                r'Account\s*of[:\s]+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
             ]
             
             for pattern in name_patterns:
                 match = re.search(pattern, first_page_text, re.MULTILINE | re.IGNORECASE)
                 if match:
                     name = match.group(1).strip()
-                    # Clean up name (remove extra spaces, titles)
+                    # Clean up name (remove extra spaces, titles, account numbers)
                     name = re.sub(r'\s+', ' ', name)
-                    if len(name) > 5 and len(name) < 50:  # Reasonable name length
+                    name = re.sub(r'\b(?:Account|No|Number|A/c)\b', '', name, flags=re.IGNORECASE)
+                    name = name.strip()
+                    if len(name) > 3 and len(name) < 50:  # Reasonable name length
                         metadata['owner_name'] = name.title()
                         break
             
-            # Extract statement period
+            # Extract statement period (improved patterns)
             period_patterns = [
                 r'Statement\s*Period[:\s]+\d{1,2}[/-]\d{1,2}[/-](\d{4})\s*to\s*\d{1,2}[/-](\d{1,2})[/-](\d{4})',
                 r'For\s*the\s*period[:\s]+\d{1,2}[/-]\d{1,2}[/-](\d{4})\s*to\s*\d{1,2}[/-](\d{1,2})[/-](\d{4})',
+                r'Period[:\s]+\d{1,2}[/-]\d{1,2}[/-](\d{4})\s*to\s*\d{1,2}[/-](\d{1,2})[/-](\d{4})',
                 r'(January|February|March|April|May|June|July|August|September|October|November|December)[\s,]+(\d{4})',
+                r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})\s*to\s*\d{1,2}[/-](\d{1,2})[/-](\d{4})',  # Extract end date
             ]
             
             for pattern in period_patterns:
@@ -187,18 +211,23 @@ def extract_metadata(pdf_bytes: bytes) -> dict:
                         year = match.group(3)
                         month = match.group(2).zfill(2)
                         metadata['period'] = f"{year}-{month}"
+                        break
                     elif len(match.groups()) == 2:  # Month Year format
-                        month_name = match.group(1)
-                        year = match.group(2)
-                        month_num = datetime.strptime(month_name, '%B').month
-                        metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
-                    break
+                        try:
+                            month_name = match.group(1)
+                            year = match.group(2)
+                            month_num = datetime.strptime(month_name, '%B').month
+                            metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
+                            break
+                        except ValueError:
+                            continue
             
             # Extract account number (last 4 digits)
             account_patterns = [
                 r'Account\s*(?:Number|No\.?)[:\s]+\**\d*?(\d{4})',
                 r'A/c[:\s]+\**\d*?(\d{4})',
                 r'xxxx\s*(\d{4})',
+                r'\*\*\*\*\s*(\d{4})',
             ]
             
             for pattern in account_patterns:
@@ -214,34 +243,42 @@ def extract_metadata(pdf_bytes: bytes) -> dict:
     return metadata
 
 
+def sanitize_filename(name: str) -> str:
+    """Sanitize a string to be used in a filename"""
+    # Remove special characters, replace spaces with underscores
+    name = re.sub(r'[^\w\s-]', '', name)
+    name = re.sub(r'[-\s]+', '_', name)
+    return name.strip('_')
+
+
 def generate_filename(metadata: dict, original_filename: str) -> str:
     """
     Generate intelligent filename from metadata
-    Format: BankName_OwnerName_Period.pdf
+    Format: {Owner}_{Bank}_{Month-Year}.pdf
     """
-    bank = metadata.get('bank_name', 'Unknown').replace(' ', '')
-    owner = metadata.get('owner_name', 'Unknown').replace(' ', '')
+    owner = metadata.get('owner_name', 'Unknown')
+    bank = metadata.get('bank_name', 'Unknown')
     period = metadata.get('period', datetime.now().strftime('%Y-%m'))
     
-    # If we couldn't extract meaningful data, use original filename
-    if bank == 'Unknown' and owner == 'Unknown':
-        return original_filename
+    # Sanitize components
+    owner_clean = sanitize_filename(owner)
+    bank_clean = sanitize_filename(bank)
     
-    filename = f"{bank}_{owner}_{period}.pdf"
+    # If we couldn't extract meaningful data, use original filename
+    if owner_clean == 'Unknown' and bank_clean == 'Unknown':
+        # Try to preserve original filename but ensure .pdf extension
+        base_name = Path(original_filename).stem
+        return f"{sanitize_filename(base_name)}.pdf"
+    
+    filename = f"{owner_clean}_{bank_clean}_{period}.pdf"
     return filename
 
 
-def upload_to_paperless(pdf_bytes: bytes, filename: str) -> dict:
+def upload_to_paperless(pdf_bytes: bytes, filename: str, title: Optional[str] = None):
     """
     Upload unlocked PDF to Paperless-ngx via API
     Returns the API response
     """
-    if not PAPERLESS_TOKEN:
-        raise HTTPException(
-            status_code=500,
-            detail="PAPERLESS_API_TOKEN environment variable not set"
-        )
-    
     endpoint = f"{PAPERLESS_URL}/api/documents/post_document/"
     headers = {
         "Authorization": f"Token {PAPERLESS_TOKEN}"
@@ -252,93 +289,87 @@ def upload_to_paperless(pdf_bytes: bytes, filename: str) -> dict:
         "document": (filename, io.BytesIO(pdf_bytes), "application/pdf")
     }
     
+    # Add title if provided and API supports it
+    data = {}
+    if title:
+        data["title"] = title
+    
     try:
-        response = requests.post(endpoint, headers=headers, files=files, timeout=30)
+        response = requests.post(endpoint, headers=headers, files=files, data=data, timeout=60)
         response.raise_for_status()
-        return response.json()
+        
+        # Try to parse as JSON, but handle cases where response might be plain text
+        try:
+            json_response = response.json()
+            # Ensure we always return a dict, even if JSON parsed to a string
+            if isinstance(json_response, dict):
+                return json_response
+            else:
+                return {"response": json_response, "status_code": response.status_code}
+        except (ValueError, requests.exceptions.JSONDecodeError):
+            # If response is not JSON, return the text content
+            return {"response": response.text, "status_code": response.status_code}
     except requests.exceptions.RequestException as e:
+        error_msg = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_detail = e.response.json()
+                error_msg = f"{error_msg}: {error_detail}"
+            except:
+                error_msg = f"{error_msg}: {e.response.text}"
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to upload to Paperless: {str(e)}"
+            detail=f"Failed to upload to Paperless: {error_msg}"
         )
 
 
+# ========== Frontend Serving ==========
+
 @app.get("/")
-def root():
+async def serve_frontend():
+    """Serve the main HTML frontend"""
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"message": "Frontend not found. Please ensure static/index.html exists."}
+
+
+# ========== API Endpoints ==========
+
+@app.get("/health")
+def health_check():
     """Health check endpoint"""
+    passwords = load_passwords()
+    
     return {
         "status": "healthy",
-        "service": "Bank Statement Unlocker",
-        "paperless_configured": bool(PAPERLESS_TOKEN),
-        "passwords_loaded": len(load_passwords())
+        "service": "Paperless Gateway Middleware",
+        "checks": {
+            "paperless_token_configured": bool(PAPERLESS_TOKEN),
+            "paperless_url": PAPERLESS_URL,
+            "passwords_file_exists": PASSWORDS_FILE.exists(),
+            "passwords_count": len(passwords),
+        }
     }
 
 
-# ========== Password Management Endpoints ==========
-
-@app.get("/passwords")
+@app.get("/api/passwords")
 def get_passwords():
-    """Get all passwords"""
+    """Get all passwords from passwords.txt"""
     passwords = load_passwords()
-    return {"passwords": passwords, "count": len(passwords)}
+    return {
+        "passwords": passwords,
+        "count": len(passwords)
+    }
 
 
-@app.post("/passwords")
-def add_password(password_data: Password):
-    """Add a new password"""
-    passwords = load_passwords()
-    
-    # Check for duplicates
-    if password_data.password in passwords:
-        raise HTTPException(status_code=400, detail="Password already exists")
-    
-    passwords.append(password_data.password)
-    
-    if save_passwords(passwords):
-        return {"success": True, "message": "Password added", "passwords": passwords}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save password")
-
-
-@app.put("/passwords/{index}")
-def update_password(index: int, password_data: Password):
-    """Update password at specific index"""
-    passwords = load_passwords()
-    
-    if index < 0 or index >= len(passwords):
-        raise HTTPException(status_code=404, detail="Password index not found")
-    
-    passwords[index] = password_data.password
-    
-    if save_passwords(passwords):
-        return {"success": True, "message": "Password updated", "passwords": passwords}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save password")
-
-
-@app.delete("/passwords/{index}")
-def delete_password(index: int):
-    """Delete password at specific index"""
-    passwords = load_passwords()
-    
-    if index < 0 or index >= len(passwords):
-        raise HTTPException(status_code=404, detail="Password index not found")
-    
-    deleted = passwords.pop(index)
-    
-    if save_passwords(passwords):
-        return {"success": True, "message": f"Password '{deleted}' deleted", "passwords": passwords}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save passwords")
-
-
-@app.put("/passwords")
-def update_all_passwords(password_update: PasswordUpdate):
-    """Update all passwords at once"""
+@app.put("/api/passwords")
+def update_passwords(password_update: PasswordUpdate):
+    """Update all passwords in passwords.txt"""
     if save_passwords(password_update.passwords):
         return {
             "success": True,
-            "message": "All passwords updated",
+            "message": "Passwords updated successfully",
             "passwords": password_update.passwords,
             "count": len(password_update.passwords)
         }
@@ -346,89 +377,111 @@ def update_all_passwords(password_update: PasswordUpdate):
         raise HTTPException(status_code=500, detail="Failed to save passwords")
 
 
-# ========== PDF Unlock & Upload Endpoint ==========
-
-@app.post("/unlock")
-def unlock_and_upload(file: UploadFile = File(...)):
+@app.post("/api/upload")
+async def bulk_upload(files: List[UploadFile] = File(...)):
     """
-    Main endpoint: Unlock PDF and upload to Paperless-ngx
+    Bulk upload endpoint: Process multiple PDF files
+    Unlocks, analyzes, renames, and uploads to Paperless-ngx
     """
-    # Validate file type
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
-    
-    # Read file into memory
-    try:
-        pdf_bytes = file.file.read()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
-    
-    if len(pdf_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
     
     # Load passwords
     passwords = load_passwords()
     
-    # Try to unlock
-    unlocked_pdf = try_unlock_pdf(pdf_bytes, passwords)
+    results = []
     
-    if unlocked_pdf is None:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": False,
-                "message": "Failed: Password not found in password list",
-                "filename": file.filename,
-                "passwords_tried": len(passwords)
-            }
-        )
-    
-    # Extract metadata from unlocked PDF
-    metadata = extract_metadata(unlocked_pdf)
-    
-    # Generate intelligent filename
-    intelligent_filename = generate_filename(metadata, file.filename)
-    
-    # Upload to Paperless with intelligent filename
-    try:
-        paperless_response = upload_to_paperless(unlocked_pdf, intelligent_filename)
+    # Process each file sequentially
+    for file in files:
+        result = {
+            "filename": file.filename,
+            "success": False,
+            "message": "",
+            "unlocked": False,
+            "renamed_filename": None,
+            "metadata": None,
+            "error": None
+        }
         
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": True,
-                "message": f"Success: Uploaded to Paperless as {intelligent_filename}",
-                "filename": intelligent_filename,
-                "original_filename": file.filename,
-                "metadata": metadata,
-                "paperless_response": paperless_response
-            }
-        )
-    except HTTPException as e:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": False,
-                "message": f"PDF unlocked but upload failed: {e.detail}",
-                "filename": file.filename,
-                "metadata": metadata
-            }
-        )
-
-
-@app.get("/health")
-def health_check():
-    """Detailed health check"""
-    passwords = load_passwords()
+        try:
+            # Validate file type
+            if not file.filename or not file.filename.lower().endswith('.pdf'):
+                result["message"] = "Only PDF files are supported"
+                result["error"] = "Invalid file type"
+                results.append(result)
+                continue
+            
+            # Read file into memory
+            try:
+                pdf_bytes = await file.read()
+            except Exception as e:
+                result["message"] = f"Failed to read file: {str(e)}"
+                result["error"] = str(e)
+                results.append(result)
+                continue
+            
+            if len(pdf_bytes) == 0:
+                result["message"] = "Empty file uploaded"
+                result["error"] = "Empty file"
+                results.append(result)
+                continue
+            
+            # Try to unlock PDF
+            unlocked_pdf, is_unlocked = try_unlock_pdf(pdf_bytes, passwords)
+            result["unlocked"] = is_unlocked
+            
+            if not is_unlocked:
+                result["message"] = "PDF could not be unlocked with available passwords"
+            
+            # Extract metadata (even if unlock failed, try to extract from locked PDF)
+            try:
+                metadata = extract_metadata(unlocked_pdf)
+                result["metadata"] = metadata
+            except Exception as e:
+                print(f"Error extracting metadata from {file.filename}: {e}")
+                metadata = {
+                    'owner_name': 'Unknown',
+                    'bank_name': 'Unknown',
+                    'period': datetime.now().strftime('%Y-%m')
+                }
+                result["metadata"] = metadata
+            
+            # Generate intelligent filename
+            intelligent_filename = generate_filename(metadata, file.filename)
+            result["renamed_filename"] = intelligent_filename
+            
+            # Upload to Paperless
+            try:
+                paperless_response = upload_to_paperless(
+                    unlocked_pdf,
+                    intelligent_filename,
+                    title=intelligent_filename
+                )
+                result["success"] = True
+                result["message"] = f"Successfully uploaded to Paperless as {intelligent_filename}"
+                # Safely extract ID if response is a dict, otherwise use the response text
+                if isinstance(paperless_response, dict):
+                    result["paperless_id"] = paperless_response.get("id")
+                    result["paperless_response"] = paperless_response
+                else:
+                    result["paperless_response"] = str(paperless_response)
+            except HTTPException as e:
+                result["message"] = f"Upload failed: {e.detail}"
+                result["error"] = e.detail
+            except Exception as e:
+                result["message"] = f"Upload failed: {str(e)}"
+                result["error"] = str(e)
+        
+        except Exception as e:
+            result["message"] = f"Unexpected error: {str(e)}"
+            result["error"] = str(e)
+        
+        results.append(result)
     
     return {
-        "status": "healthy",
-        "checks": {
-            "paperless_token_configured": bool(PAPERLESS_TOKEN),
-            "passwords_file_exists": PASSWORDS_FILE.exists(),
-            "passwords_count": len(passwords),
-            "paperless_url": PAPERLESS_URL
-        }
+        "success": True,
+        "processed": len(results),
+        "results": results
     }
 
 
