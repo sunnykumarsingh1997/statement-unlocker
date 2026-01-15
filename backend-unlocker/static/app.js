@@ -8,6 +8,11 @@ let clients = [];
 let banks = [];
 let detectedMetadata = null;
 
+// Password modal state
+let pendingPasswordFile = null;
+let pendingPasswordFileIndex = null;
+let passwordResolve = null;
+
 // DOM Elements - will be initialized after DOM loads
 let elements = {};
 
@@ -75,7 +80,16 @@ function initElements() {
         bankModalTitle: document.getElementById('bankModalTitle'),
         bankId: document.getElementById('bankId'),
         bankNameInput: document.getElementById('bankNameInput'),
-        bankPatterns: document.getElementById('bankPatterns')
+        bankPatterns: document.getElementById('bankPatterns'),
+
+        // Password Modal
+        passwordModal: document.getElementById('passwordModal'),
+        passwordForm: document.getElementById('passwordForm'),
+        passwordFileName: document.getElementById('passwordFileName'),
+        manualPassword: document.getElementById('manualPassword'),
+        savePassword: document.getElementById('savePassword'),
+        passwordError: document.getElementById('passwordError'),
+        passwordProgress: document.getElementById('passwordProgress')
     };
 }
 
@@ -131,6 +145,14 @@ function setupEventListeners() {
 
     // Auto-detection apply button
     elements.applyDetectedBtn.addEventListener('click', applyDetectedMetadata);
+
+    // Password modal
+    elements.passwordForm.addEventListener('submit', handlePasswordSubmit);
+    elements.passwordModal.addEventListener('click', (e) => {
+        if (e.target === elements.passwordModal) {
+            // Don't close on outside click - user must explicitly skip or enter password
+        }
+    });
 }
 
 // ========== Tab Switching ==========
@@ -668,24 +690,48 @@ function displayResults(results) {
 
     results.forEach(result => {
         const resultItem = document.createElement('div');
-        resultItem.className = `result-item ${result.success ? 'success' : 'error'}`;
 
-        const statusClass = result.success ? 'success' : (result.unlocked ? 'warning' : 'error');
-        const statusText = result.success ? 'Success' : (result.unlocked ? 'Upload Failed' : 'Failed');
+        // Determine status
+        let statusClass, statusText;
+        if (result.success) {
+            statusClass = 'success';
+            statusText = 'Success';
+            resultItem.className = 'result-item success';
+        } else if (result.needs_password || result.timeout) {
+            statusClass = 'warning';
+            statusText = result.timeout ? 'Password Timeout' : 'Needs Password';
+            resultItem.className = 'result-item warning';
+        } else if (result.unlocked) {
+            statusClass = 'warning';
+            statusText = 'Upload Failed';
+            resultItem.className = 'result-item warning';
+        } else if (result.skipped) {
+            statusClass = 'info';
+            statusText = 'Skipped';
+            resultItem.className = 'result-item info';
+        } else {
+            statusClass = 'error';
+            statusText = 'Failed';
+            resultItem.className = 'result-item error';
+        }
 
         let detailsHtml = '';
         if (result.metadata) {
             const meta = result.metadata;
             detailsHtml = `
                 <div class="result-details">
-                    <div><strong>Owner:</strong> ${escapeHtml(meta.owner_name || 'Unknown')}</div>
+                    <div><strong>Client:</strong> ${escapeHtml(meta.client_name || 'Unknown')}</div>
+                    <div><strong>Bank:</strong> ${escapeHtml(meta.bank_name || 'Unknown')}</div>
                     <div><strong>Period:</strong> ${escapeHtml(meta.period || 'Unknown')}</div>
-                    ${meta.matched_client ? `<div><strong>Matched Client:</strong> ${escapeHtml(meta.matched_client)}</div>` : ''}
                     ${result.renamed_filename ? `<div><strong>Renamed to:</strong> ${escapeHtml(result.renamed_filename)}</div>` : ''}
-                    ${result.tag_id ? `<div><strong>Tag ID:</strong> ${result.tag_id}</div>` : ''}
-                    ${result.correspondent_id ? `<div><strong>Correspondent ID:</strong> ${result.correspondent_id}</div>` : ''}
                 </div>
             `;
+        }
+
+        // Show attempts info if available
+        let attemptsInfo = '';
+        if (result.attempts) {
+            attemptsInfo = `<div class="result-details"><strong>Passwords tried:</strong> ${result.attempts}</div>`;
         }
 
         resultItem.innerHTML = `
@@ -695,7 +741,8 @@ function displayResults(results) {
             </div>
             <div class="result-message">${escapeHtml(result.message || 'No message')}</div>
             ${detailsHtml}
-            ${result.error ? `<div class="result-details"><strong>Error:</strong> ${escapeHtml(result.error)}</div>` : ''}
+            ${attemptsInfo}
+            ${result.error ? `<div class="result-details error-text"><strong>Error:</strong> ${escapeHtml(result.error)}</div>` : ''}
         `;
 
         elements.resultsContainer.appendChild(resultItem);
@@ -729,9 +776,97 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ========== Password Modal Functions ==========
+
+function openPasswordModal(file, fileIndex) {
+    pendingPasswordFile = file;
+    pendingPasswordFileIndex = fileIndex;
+
+    elements.passwordFileName.textContent = file.name;
+    elements.manualPassword.value = '';
+    elements.passwordError.style.display = 'none';
+    elements.passwordProgress.style.display = 'none';
+
+    elements.passwordModal.classList.add('show');
+    elements.manualPassword.focus();
+
+    // Return a promise that resolves when user enters password or skips
+    return new Promise((resolve) => {
+        passwordResolve = resolve;
+    });
+}
+
+function closePasswordModal() {
+    elements.passwordModal.classList.remove('show');
+    pendingPasswordFile = null;
+    pendingPasswordFileIndex = null;
+}
+
+async function handlePasswordSubmit(e) {
+    e.preventDefault();
+
+    const password = elements.manualPassword.value.trim();
+    if (!password) {
+        elements.passwordError.textContent = 'Please enter a password';
+        elements.passwordError.style.display = 'block';
+        return;
+    }
+
+    // Show progress
+    elements.passwordProgress.style.display = 'flex';
+    elements.passwordError.style.display = 'none';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', pendingPasswordFile);
+        formData.append('password', password);
+        formData.append('save_password', elements.savePassword.checked);
+
+        // Add client_id if selected
+        const clientId = elements.clientSelect.value;
+        if (clientId) {
+            formData.append('client_id', clientId);
+        }
+
+        const response = await fetch(`${API_BASE}/unlock-manual`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.unlocked) {
+            // Password worked!
+            closePasswordModal();
+            if (passwordResolve) {
+                passwordResolve({ success: true, password: password, detected: data.detected });
+            }
+        } else {
+            // Password didn't work
+            elements.passwordError.textContent = 'Incorrect password. Please try again.';
+            elements.passwordError.style.display = 'block';
+            elements.manualPassword.select();
+        }
+    } catch (error) {
+        elements.passwordError.textContent = `Error: ${error.message}`;
+        elements.passwordError.style.display = 'block';
+    } finally {
+        elements.passwordProgress.style.display = 'none';
+    }
+}
+
+function skipPasswordFile() {
+    closePasswordModal();
+    if (passwordResolve) {
+        passwordResolve({ success: false, skipped: true });
+    }
+}
+
 // Global functions for onclick handlers
 window.removeFile = removeFile;
 window.editClient = openClientModal;
 window.deleteClient = deleteClient;
 window.closeClientModal = closeClientModal;
 window.closeBankModal = closeBankModal;
+window.closePasswordModal = closePasswordModal;
+window.skipPasswordFile = skipPasswordFile;

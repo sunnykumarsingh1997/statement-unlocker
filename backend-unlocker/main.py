@@ -9,7 +9,8 @@ import os
 import re
 import json
 import uuid
-from typing import Optional, List, Tuple
+import time
+from typing import Optional, List, Tuple, Dict, Any
 from pathlib import Path
 from datetime import datetime
 
@@ -60,6 +61,7 @@ class Client(BaseModel):
     color: str = "#3b82f6"  # Default blue color
     tag_id: Optional[int] = None  # Paperless tag ID after sync
     correspondent_id: Optional[int] = None  # Paperless correspondent ID after sync
+    passwords: List[str] = []  # Client-specific passwords that worked before
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
@@ -103,6 +105,35 @@ def save_clients(clients: List[dict]) -> bool:
         return False
 
 
+def add_password_to_client(client_id: str, password: str) -> bool:
+    """
+    Add a working password to a client's saved passwords.
+    Used when manual password entry succeeds.
+    """
+    clients = load_clients()
+    for client in clients:
+        if client["id"] == client_id:
+            # Initialize passwords array if not exists
+            if "passwords" not in client:
+                client["passwords"] = []
+            # Add password if not already saved
+            if password not in client["passwords"]:
+                client["passwords"].append(password)
+                print(f"[DEBUG] Saved password to client: {client['name']}")
+                return save_clients(clients)
+            return True  # Password already exists
+    return False
+
+
+def get_client_passwords(client_id: str) -> List[str]:
+    """Get saved passwords for a specific client"""
+    clients = load_clients()
+    for client in clients:
+        if client["id"] == client_id:
+            return client.get("passwords", [])
+    return []
+
+
 # ========== Bank Management Functions ==========
 
 def load_banks() -> List[dict]:
@@ -129,24 +160,144 @@ def save_banks(banks: List[dict]) -> bool:
         return False
 
 
-def detect_bank_from_text(text: str, banks: List[dict]) -> Optional[dict]:
-    """Detect bank from PDF text using pattern matching"""
-    text_upper = text.upper()
+def detect_bank_from_text(text: str, banks: List[dict], auto_add: bool = True) -> Optional[dict]:
+    """
+    Detect bank from PDF text using pattern matching with confidence scoring.
+    Uses word boundaries and counts occurrences for better accuracy.
+
+    Args:
+        text: PDF text content
+        banks: List of bank definitions
+        auto_add: If True, auto-add detected but unknown banks to banks.json
+    """
+    if not text:
+        return None
+
+    text_lower = text.lower()
+    best_match = None
+    best_score = 0
+
     for bank in banks:
+        bank_score = 0
+        matched_pattern = None
+
         for pattern in bank.get("patterns", []):
-            if pattern.upper() in text_upper:
-                print(f"[DEBUG] Bank detected: {bank['name']} (pattern: '{pattern}')")
-                return bank
+            # Use word boundary regex for more accurate matching
+            pattern_regex = r'\b' + re.escape(pattern.lower()) + r'\b'
+            matches = re.findall(pattern_regex, text_lower, re.IGNORECASE)
+            count = len(matches)
+
+            if count > 0:
+                # Score based on occurrence count and pattern length
+                # Longer patterns are more specific, so weight them higher
+                score = count * (len(pattern) / 10)
+                if score > bank_score:
+                    bank_score = score
+                    matched_pattern = pattern
+
+        if bank_score > best_score:
+            best_score = bank_score
+            best_match = bank.copy()
+            best_match["_matched_pattern"] = matched_pattern
+            best_match["_confidence"] = bank_score
+
+    if best_match:
+        print(f"[DEBUG] Bank detected: {best_match['name']} "
+              f"(pattern: '{best_match.get('_matched_pattern')}', confidence: {best_score:.2f})")
+        return best_match
+
+    # Try to detect unknown banks if auto_add is enabled
+    if auto_add:
+        # Common bank name patterns in Indian statements
+        unknown_bank_patterns = [
+            r'([A-Z][A-Za-z]+\s+Bank)\b',  # "Something Bank"
+            r'\b(Bank\s+of\s+[A-Z][A-Za-z]+)\b',  # "Bank of Something"
+            r'\b([A-Z]{2,5})\s+Bank\b',  # "XYZ Bank" (abbreviations)
+        ]
+
+        for pattern in unknown_bank_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                detected_name = match.group(1).strip()
+                # Check it's not already in banks list
+                if not any(detected_name.lower() == b["name"].lower() for b in banks):
+                    print(f"[DEBUG] Auto-detected unknown bank: {detected_name}")
+                    new_bank = auto_add_bank(detected_name)
+                    if new_bank:
+                        return new_bank
+
+    return None
+
+
+def auto_add_bank(bank_name: str) -> Optional[dict]:
+    """Auto-add a newly detected bank to banks.json"""
+    banks = load_banks()
+
+    # Generate ID from name
+    bank_id = sanitize_filename(bank_name).lower()
+
+    # Check if already exists
+    for bank in banks:
+        if bank["id"] == bank_id or bank["name"].lower() == bank_name.lower():
+            return bank
+
+    # Create new bank entry
+    new_bank = {
+        "id": bank_id,
+        "name": bank_name,
+        "patterns": [bank_name, bank_name.upper(), bank_name.lower()]
+    }
+
+    banks.append(new_bank)
+    if save_banks(banks):
+        print(f"[DEBUG] Auto-added bank to banks.json: {bank_name}")
+        return new_bank
     return None
 
 
 def find_client_by_pattern(text: str, clients: List[dict]) -> Optional[dict]:
-    """Find a client whose match_pattern exists in the given text"""
+    """
+    Find a client whose match_pattern exists in the given text.
+    Uses case-insensitive matching and word boundary detection for account numbers.
+    """
+    if not text:
+        return None
+
+    text_lower = text.lower()
+    best_match = None
+    best_score = 0
+
     for client in clients:
         pattern = client.get("match_pattern", "")
-        if pattern and pattern in text:
-            print(f"[DEBUG] Client matched: {client['name']} (pattern: '{pattern}')")
-            return client
+        if not pattern:
+            continue
+
+        pattern_lower = pattern.lower()
+        score = 0
+
+        # Try exact match first (case-insensitive)
+        if pattern_lower in text_lower:
+            # Count occurrences for confidence
+            count = text_lower.count(pattern_lower)
+            score = count * len(pattern)  # Longer patterns = more specific
+
+        # Try with word boundaries (for account numbers)
+        if score == 0:
+            # Account numbers may have spaces or dashes around them
+            pattern_regex = r'(?:^|[\s\-:/])' + re.escape(pattern_lower) + r'(?:[\s\-:/]|$)'
+            matches = re.findall(pattern_regex, text_lower)
+            if matches:
+                score = len(matches) * len(pattern)
+
+        if score > best_score:
+            best_score = score
+            best_match = client
+
+    if best_match:
+        print(f"[DEBUG] Client matched: {best_match['name']} "
+              f"(pattern: '{best_match.get('match_pattern')}', confidence: {best_score})")
+        return best_match
+
     return None
 
 
@@ -333,48 +484,130 @@ def save_passwords(passwords: List[str]) -> bool:
 
 # ========== PDF Processing Functions ==========
 
-def try_unlock_pdf(pdf_bytes: bytes, passwords: List[str]) -> Tuple[Optional[bytes], bool]:
+def try_unlock_pdf(pdf_bytes: bytes, passwords: List[str], timeout: float = 30.0,
+                   client_passwords: List[str] = None) -> Dict[str, Any]:
     """
-    Try to unlock a PDF using a list of passwords.
-    Returns (unlocked_pdf_bytes, is_unlocked) tuple.
+    Try to unlock a PDF using a list of passwords with timeout support.
+
+    Args:
+        pdf_bytes: The PDF file bytes
+        passwords: Global password list
+        timeout: Maximum time in seconds to try passwords (default 30)
+        client_passwords: Client-specific passwords to try first
+
+    Returns dict with:
+        - unlocked: bool - whether PDF was unlocked
+        - pdf_bytes: bytes - unlocked PDF bytes (or original if failed)
+        - password: str|None - the working password
+        - timeout: bool - whether timeout was reached
+        - attempts: int - number of passwords tried
+        - already_unlocked: bool - if PDF wasn't password protected
     """
+    result = {
+        "unlocked": False,
+        "pdf_bytes": pdf_bytes,
+        "password": None,
+        "timeout": False,
+        "attempts": 0,
+        "already_unlocked": False
+    }
+
     pdf_stream = io.BytesIO(pdf_bytes)
-    
+    start_time = time.time()
+
     # First, check if PDF is already unlocked
     try:
         with pikepdf.open(pdf_stream) as pdf:
             output = io.BytesIO()
             pdf.save(output)
-            return output.getvalue(), True
+            result["unlocked"] = True
+            result["pdf_bytes"] = output.getvalue()
+            result["already_unlocked"] = True
+            return result
     except pikepdf.PasswordError:
         pass
     except Exception as e:
         print(f"Warning: PDF validation error: {e}")
-        return pdf_bytes, False
-    
-    # Try each password
-    for password in passwords:
+        return result
+
+    # Build password list: client-specific first, then global
+    all_passwords = []
+    if client_passwords:
+        all_passwords.extend(client_passwords)
+    all_passwords.extend([p for p in passwords if p not in (client_passwords or [])])
+
+    # Try each password with timeout check
+    for password in all_passwords:
+        # Check timeout
+        elapsed = time.time() - start_time
+        if elapsed >= timeout:
+            result["timeout"] = True
+            print(f"[DEBUG] Password timeout reached after {elapsed:.1f}s, {result['attempts']} attempts")
+            return result
+
+        result["attempts"] += 1
         try:
             pdf_stream.seek(0)
             with pikepdf.open(pdf_stream, password=password) as pdf:
                 output = io.BytesIO()
                 pdf.save(output, encryption=False)
-                return output.getvalue(), True
+                result["unlocked"] = True
+                result["pdf_bytes"] = output.getvalue()
+                result["password"] = password
+                print(f"[DEBUG] PDF unlocked with password (attempt {result['attempts']})")
+                return result
         except pikepdf.PasswordError:
             continue
         except Exception as e:
             print(f"Error trying password: {e}")
             continue
-    
-    return pdf_bytes, False
+
+    return result
 
 
-def extract_text_from_pdf(pdf_bytes: bytes) -> str:
-    """Extract all text from PDF for pattern matching"""
+def try_single_password(pdf_bytes: bytes, password: str) -> Dict[str, Any]:
+    """
+    Try a single password to unlock a PDF.
+    Used for manual password entry.
+
+    Returns dict with:
+        - unlocked: bool
+        - pdf_bytes: bytes
+        - password: str|None
+    """
+    result = {
+        "unlocked": False,
+        "pdf_bytes": pdf_bytes,
+        "password": None
+    }
+
+    pdf_stream = io.BytesIO(pdf_bytes)
+
+    try:
+        with pikepdf.open(pdf_stream, password=password) as pdf:
+            output = io.BytesIO()
+            pdf.save(output, encryption=False)
+            result["unlocked"] = True
+            result["pdf_bytes"] = output.getvalue()
+            result["password"] = password
+    except pikepdf.PasswordError:
+        pass
+    except Exception as e:
+        print(f"Error with manual password: {e}")
+
+    return result
+
+
+def extract_text_from_pdf(pdf_bytes: bytes, max_pages: int = 5) -> str:
+    """
+    Extract text from PDF for pattern matching.
+    Scans up to max_pages (default 5) for better detection.
+    """
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             all_text = ""
-            for page in pdf.pages[:3]:  # Check first 3 pages
+            pages_to_scan = min(len(pdf.pages), max_pages)
+            for page in pdf.pages[:pages_to_scan]:
                 page_text = page.extract_text() or ""
                 all_text += page_text + "\n"
             return all_text
@@ -395,23 +628,24 @@ def extract_metadata(pdf_bytes: bytes, clients: List[dict]) -> dict:
         'matched_client': None,
         'raw_text_preview': ''
     }
-    
+
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             if len(pdf.pages) == 0:
                 return metadata
-            
-            # Extract text from first pages
+
+            # Extract text from first 5 pages for better detection
             all_text = ""
-            for page in pdf.pages[:3]:
+            pages_to_scan = min(len(pdf.pages), 5)
+            for page in pdf.pages[:pages_to_scan]:
                 page_text = page.extract_text() or ""
                 all_text += page_text + "\n"
-            
+
             if not all_text:
                 return metadata
-            
+
             metadata['raw_text_preview'] = all_text[:500]
-            
+
             # ========== CLIENT-BASED OWNER DETECTION ==========
             # Check if any client's match_pattern exists in the PDF
             matched_client = find_client_by_pattern(all_text, clients)
@@ -428,7 +662,7 @@ def extract_metadata(pdf_bytes: bytes, clients: List[dict]) -> dict:
                     r'(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
                     r'Dear\s+([A-Z][A-Za-z\s]+?)(?:,|\n|\r|$)',
                 ]
-                
+
                 for pattern in name_patterns:
                     match = re.search(pattern, all_text, re.MULTILINE)
                     if match:
@@ -440,46 +674,107 @@ def extract_metadata(pdf_bytes: bytes, clients: List[dict]) -> dict:
                             metadata['owner_name'] = name.title()
                             print(f"[DEBUG] Owner from regex: {name}")
                             break
-            
-            # ========== DATE/PERIOD EXTRACTION ==========
-            month_names = ['january', 'february', 'march', 'april', 'may', 'june', 
+
+            # ========== DATE/PERIOD EXTRACTION (IMPROVED) ==========
+            month_names = ['january', 'february', 'march', 'april', 'may', 'june',
                           'july', 'august', 'september', 'october', 'november', 'december']
-            month_abbrev = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
+            month_abbrev = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
                            'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-            
-            # Approach 1: Month names with year
-            month_year_pattern = r'\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[,\s\-]+(\d{4})\b'
-            matches = re.findall(month_year_pattern, all_text, re.IGNORECASE)
-            if matches:
-                month_str, year = matches[-1]
-                try:
-                    if month_str.lower() in month_names:
-                        month_num = month_names.index(month_str.lower()) + 1
-                    else:
-                        month_num = month_abbrev.index(month_str.lower()[:3]) + 1
-                    metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
-                    print(f"[DEBUG] Period detected: {metadata['period']}")
-                except (ValueError, IndexError):
-                    pass
-            
-            # Approach 2: Date ranges
-            if metadata['period'] == datetime.now().strftime('%Y-%m'):
-                date_range_pattern = r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|To|TO|-|–)\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})'
+
+            period_found = False
+
+            # Approach 0: Look for explicit "Statement Period" or "Billing Period"
+            period_patterns = [
+                r'(?:Statement|Billing|Account)\s*Period[:\s]+.*?(\d{1,2})[/\-\s](\d{1,2}|\w{3,9})[/\-\s](\d{4})\s*(?:to|To|TO|-|–|upto)\s*(\d{1,2})[/\-\s](\d{1,2}|\w{3,9})[/\-\s](\d{4})',
+                r'(?:From|Period)\s*[:\s]*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|To|TO|-|–)\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})',
+            ]
+
+            for pattern in period_patterns:
+                match = re.search(pattern, all_text, re.IGNORECASE)
+                if match:
+                    # Use end date for period
+                    try:
+                        end_month = match.group(5)
+                        end_year = match.group(6)
+                        # Handle month name vs number
+                        if end_month.isdigit():
+                            month_num = int(end_month)
+                        else:
+                            end_month_lower = end_month.lower()[:3]
+                            if end_month_lower in month_abbrev:
+                                month_num = month_abbrev.index(end_month_lower) + 1
+                            else:
+                                continue
+                        if 1 <= month_num <= 12:
+                            metadata['period'] = f"{end_year}-{str(month_num).zfill(2)}"
+                            period_found = True
+                            print(f"[DEBUG] Period from billing period: {metadata['period']}")
+                            break
+                    except (ValueError, IndexError):
+                        continue
+
+            # Approach 1: Month names with year (e.g., "December 2024", "Dec-2024")
+            if not period_found:
+                month_year_pattern = r'\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[,\s\-\']+(\d{4})\b'
+                matches = re.findall(month_year_pattern, all_text, re.IGNORECASE)
+                if matches:
+                    # Use the last occurrence (usually the statement period)
+                    month_str, year = matches[-1]
+                    try:
+                        if month_str.lower() in month_names:
+                            month_num = month_names.index(month_str.lower()) + 1
+                        else:
+                            month_num = month_abbrev.index(month_str.lower()[:3]) + 1
+                        metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
+                        period_found = True
+                        print(f"[DEBUG] Period from month-year: {metadata['period']}")
+                    except (ValueError, IndexError):
+                        pass
+
+            # Approach 2: Indian date formats DD/MM/YYYY or DD-MM-YYYY ranges
+            if not period_found:
+                date_range_pattern = r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|To|TO|-|–|upto)\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})'
                 match = re.search(date_range_pattern, all_text)
                 if match:
-                    end_month, end_year = match.group(5), match.group(6)
-                    metadata['period'] = f"{end_year}-{end_month.zfill(2)}"
-            
-            # Approach 3: Statement date
-            if metadata['period'] == datetime.now().strftime('%Y-%m'):
-                stmt_date_pattern = r'Statement\s*(?:Date|Period|For)[:\s]+(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})'
+                    end_day, end_month, end_year = match.group(4), match.group(5), match.group(6)
+                    try:
+                        if 1 <= int(end_month) <= 12:
+                            metadata['period'] = f"{end_year}-{end_month.zfill(2)}"
+                            period_found = True
+                            print(f"[DEBUG] Period from date range: {metadata['period']}")
+                    except ValueError:
+                        pass
+
+            # Approach 3: DD-MMM-YYYY format (e.g., "31-Dec-2024")
+            if not period_found:
+                dd_mmm_yyyy_pattern = r'(\d{1,2})[/\-\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/\-\s,\']+(\d{4})'
+                matches = re.findall(dd_mmm_yyyy_pattern, all_text, re.IGNORECASE)
+                if matches:
+                    day, month_str, year = matches[-1]
+                    try:
+                        month_num = month_abbrev.index(month_str.lower()[:3]) + 1
+                        metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
+                        period_found = True
+                        print(f"[DEBUG] Period from DD-MMM-YYYY: {metadata['period']}")
+                    except (ValueError, IndexError):
+                        pass
+
+            # Approach 4: Statement date line
+            if not period_found:
+                stmt_date_pattern = r'Statement\s*(?:Date|Period|For|of)[:\s]+(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})'
                 match = re.search(stmt_date_pattern, all_text, re.IGNORECASE)
                 if match:
-                    month, year = match.group(2), match.group(3)
-                    metadata['period'] = f"{year}-{month.zfill(2)}"
-            
-            # Approach 4: Any dates, use latest
-            if metadata['period'] == datetime.now().strftime('%Y-%m'):
+                    day, month, year = match.group(1), match.group(2), match.group(3)
+                    try:
+                        if 1 <= int(month) <= 12:
+                            metadata['period'] = f"{year}-{month.zfill(2)}"
+                            period_found = True
+                            print(f"[DEBUG] Period from statement date: {metadata['period']}")
+                    except ValueError:
+                        pass
+
+            # Approach 5: Any dates in DD/MM/YYYY format, use latest
+            if not period_found:
                 all_dates = re.findall(r'(\d{1,2})[/\-](\d{1,2})[/\-](20\d{2})', all_text)
                 if all_dates:
                     valid_dates = []
@@ -830,8 +1125,10 @@ async def analyze_pdf(file: UploadFile = File(...)):
     clients = load_clients()
     banks = load_banks()
 
-    # Try to unlock
-    unlocked_pdf, is_unlocked = try_unlock_pdf(pdf_bytes, passwords)
+    # Try to unlock (with new dict-based return)
+    unlock_result = try_unlock_pdf(pdf_bytes, passwords)
+    is_unlocked = unlock_result["unlocked"]
+    unlocked_pdf = unlock_result["pdf_bytes"]
 
     # Extract text
     text = extract_text_from_pdf(unlocked_pdf if is_unlocked else pdf_bytes)
@@ -859,6 +1156,92 @@ async def analyze_pdf(file: UploadFile = File(...)):
     return {
         "success": True,
         "unlocked": is_unlocked,
+        "timeout": unlock_result.get("timeout", False),
+        "attempts": unlock_result.get("attempts", 0),
+        "detected": {
+            "client_id": matched_client.get("id") if matched_client else None,
+            "client_name": matched_client.get("name") if matched_client else None,
+            "bank_id": detected_bank.get("id") if detected_bank else None,
+            "bank_name": detected_bank.get("name") if detected_bank else None,
+            "period_month": period_month,
+            "period_year": period_year,
+            "owner_name": metadata.get("owner_name")
+        }
+    }
+
+
+# ========== Manual Password Unlock Endpoint ==========
+
+@app.post("/api/unlock-manual")
+async def unlock_pdf_manual(
+    file: UploadFile = File(...),
+    password: str = Form(...),
+    client_id: Optional[str] = Form(None),
+    save_password: bool = Form(True)
+):
+    """
+    Try to unlock a PDF with a manually entered password.
+    If successful and client_id is provided, saves the password to the client.
+
+    Returns the unlocked PDF and detected metadata on success.
+    """
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    try:
+        pdf_bytes = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+
+    # Try the single password
+    result = try_single_password(pdf_bytes, password)
+
+    if not result["unlocked"]:
+        return {
+            "success": False,
+            "unlocked": False,
+            "message": "Password incorrect"
+        }
+
+    # Password worked! Save it to client if requested
+    if save_password and client_id:
+        add_password_to_client(client_id, password)
+
+    # Also add to global password list if not already there
+    if save_password:
+        passwords = load_passwords()
+        if password not in passwords:
+            passwords.append(password)
+            save_passwords(passwords)
+            print(f"[DEBUG] Added new password to global list")
+
+    # Extract metadata from unlocked PDF
+    clients = load_clients()
+    banks = load_banks()
+    unlocked_pdf = result["pdf_bytes"]
+
+    text = extract_text_from_pdf(unlocked_pdf)
+    matched_client = find_client_by_pattern(text, clients)
+    detected_bank = detect_bank_from_text(text, banks)
+    metadata = extract_metadata(unlocked_pdf, clients)
+
+    period = metadata.get('period', '')
+    period_month = None
+    period_year = None
+    if period and '-' in period:
+        parts = period.split('-')
+        if len(parts) == 2:
+            try:
+                period_year = int(parts[0])
+                period_month = int(parts[1])
+            except ValueError:
+                pass
+
+    return {
+        "success": True,
+        "unlocked": True,
+        "message": "PDF unlocked successfully",
+        "password_saved": save_password,
         "detected": {
             "client_id": matched_client.get("id") if matched_client else None,
             "client_name": matched_client.get("name") if matched_client else None,
@@ -946,12 +1329,35 @@ async def bulk_upload(
                 results.append(result)
                 continue
 
-            # Unlock PDF
-            unlocked_pdf, is_unlocked = try_unlock_pdf(pdf_bytes, passwords)
-            result["unlocked"] = is_unlocked
+            # Get client-specific passwords if client is pre-selected
+            client_passwords = []
+            if selected_client:
+                client_passwords = selected_client.get("passwords", [])
 
-            if not is_unlocked:
+            # Unlock PDF with timeout and client passwords first
+            unlock_result = try_unlock_pdf(
+                pdf_bytes, passwords,
+                timeout=30.0,
+                client_passwords=client_passwords
+            )
+            is_unlocked = unlock_result["unlocked"]
+            unlocked_pdf = unlock_result["pdf_bytes"]
+            result["unlocked"] = is_unlocked
+            result["timeout"] = unlock_result.get("timeout", False)
+            result["attempts"] = unlock_result.get("attempts", 0)
+
+            if unlock_result.get("timeout"):
+                result["message"] = "Password timeout - manual entry required"
+                result["needs_password"] = True
+            elif not is_unlocked:
                 result["message"] = "PDF could not be unlocked with available passwords"
+                result["needs_password"] = True
+
+            # If password was found, save it to client for future use
+            if is_unlocked and unlock_result.get("password") and selected_client:
+                working_password = unlock_result["password"]
+                if working_password not in selected_client.get("passwords", []):
+                    add_password_to_client(selected_client["id"], working_password)
 
             # Extract text for auto-detection
             text = extract_text_from_pdf(unlocked_pdf if is_unlocked else pdf_bytes)

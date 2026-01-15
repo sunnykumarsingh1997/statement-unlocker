@@ -347,6 +347,44 @@
         </div>
     </div>
 
+    <!-- Password Input Modal (for manual password entry on timeout) -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content password-modal">
+            <div class="modal-header warning">
+                <h3>Password Required</h3>
+                <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <div class="password-modal-body">
+                <div class="password-file-info">
+                    <p class="file-name">File: <strong id="passwordFileName">-</strong></p>
+                    <p class="timeout-message">Could not unlock with saved passwords. Please enter the password manually.</p>
+                </div>
+                <form id="passwordForm">
+                    <div class="form-group">
+                        <label for="manualPassword">PDF Password *</label>
+                        <input type="text" id="manualPassword" placeholder="Enter password" required autocomplete="off">
+                        <small>Common formats: DOB (DDMMYYYY), PAN number, account number</small>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="savePassword" checked>
+                            <span>Save this password for future use</span>
+                        </label>
+                    </div>
+                    <div id="passwordError" class="error-message" style="display: none;"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="skipPasswordFile()">Skip This File</button>
+                        <button type="submit" class="btn btn-primary">Try Password</button>
+                    </div>
+                </form>
+            </div>
+            <div class="password-progress" id="passwordProgress" style="display: none;">
+                <div class="progress-spinner"></div>
+                <p>Trying password...</p>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js"></script>
 </body>
 </html>
