@@ -25,8 +25,77 @@
             <!-- Upload Tab -->
             <section id="upload-tab" class="tab-content active">
                 <h2>📤 Upload PDF Files</h2>
-                <p class="section-description">Drag and drop multiple PDF files or click to select</p>
-                
+                <p class="section-description">Pre-select metadata (optional) or let the system auto-detect from PDF content</p>
+
+                <!-- Metadata Form -->
+                <div id="metadataForm" class="metadata-form">
+                    <h3>Pre-Select Metadata (Optional)</h3>
+                    <p class="form-description">Select metadata before uploading, or leave empty for auto-detection</p>
+
+                    <div class="metadata-fields">
+                        <div class="form-group">
+                            <label for="clientSelect">Client</label>
+                            <select id="clientSelect">
+                                <option value="">-- Auto-detect --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bankSelect">Bank</label>
+                            <div class="select-with-add">
+                                <select id="bankSelect">
+                                    <option value="">-- Auto-detect --</option>
+                                </select>
+                                <button type="button" id="addBankBtn" class="btn btn-secondary btn-small">+ Add</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Statement Type</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="statementType" value="Bank Statement">
+                                    <span>Bank Statement</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="statementType" value="Credit Card Statement">
+                                    <span>Credit Card Statement</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Period</label>
+                            <div class="period-selectors">
+                                <select id="periodMonth">
+                                    <option value="">-- Month --</option>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                                <select id="periodYear">
+                                    <option value="">-- Year --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="detectedMetadata" class="detected-metadata" style="display: none;">
+                        <h4>Auto-Detected Values</h4>
+                        <div id="detectedValues"></div>
+                        <button type="button" id="applyDetectedBtn" class="btn btn-secondary btn-small">Apply Detected</button>
+                    </div>
+                </div>
+
                 <div id="dropZone" class="drop-zone">
                     <div class="drop-zone-content">
                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -247,6 +316,32 @@
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeClientModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Client</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bank Modal -->
+    <div id="bankModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="bankModalTitle">Add Bank</h3>
+                <button class="modal-close" onclick="closeBankModal()">&times;</button>
+            </div>
+            <form id="bankForm">
+                <input type="hidden" id="bankId">
+                <div class="form-group">
+                    <label for="bankNameInput">Bank Name *</label>
+                    <input type="text" id="bankNameInput" placeholder="e.g., HDFC Bank" required>
+                </div>
+                <div class="form-group">
+                    <label for="bankPatterns">Detection Patterns (comma-separated)</label>
+                    <input type="text" id="bankPatterns" placeholder="e.g., HDFC, HDFC Bank">
+                    <small>Patterns to detect this bank in PDF text</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeBankModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Bank</button>
                 </div>
             </form>
         </div>

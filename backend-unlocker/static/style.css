@@ -804,3 +804,164 @@ footer a:hover {
         flex-direction: column;
     }
 }
+
+/* ========== Metadata Form ========== */
+
+.metadata-form {
+    background: var(--card-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.metadata-form h3 {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+}
+
+.metadata-form .form-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+.metadata-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.metadata-form .form-group {
+    margin-bottom: 0;
+}
+
+.metadata-form .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.metadata-form select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.metadata-form select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.select-with-add {
+    display: flex;
+    gap: 8px;
+}
+
+.select-with-add select {
+    flex: 1;
+}
+
+/* Radio Group */
+.radio-group {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.radio-label:hover {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.radio-label input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+}
+
+.radio-label input[type="radio"]:checked + span {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* Period Selectors */
+.period-selectors {
+    display: flex;
+    gap: 10px;
+}
+
+.period-selectors select {
+    flex: 1;
+}
+
+/* Detected Metadata */
+.detected-metadata {
+    margin-top: 15px;
+    padding: 15px;
+    background: #dbeafe;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.detected-metadata h4 {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: var(--primary-color);
+}
+
+#detectedValues {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+#detectedValues div {
+    background: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+
+/* Small button variant */
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+/* Responsive metadata form */
+@media (max-width: 768px) {
+    .metadata-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .radio-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .period-selectors {
+        flex-direction: column;
+    }
+}

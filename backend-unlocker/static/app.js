@@ -5,6 +5,8 @@ const API_BASE = '/api';
 // State
 let selectedFiles = [];
 let clients = [];
+let banks = [];
+let detectedMetadata = null;
 
 // DOM Elements - will be initialized after DOM loads
 let elements = {};
@@ -15,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadPasswords();
     loadClients();
+    loadBanks();
+    populateYearDropdown();
 });
 
 function initElements() {
@@ -45,7 +49,7 @@ function initElements() {
         noClients: document.getElementById('noClients'),
         syncStatus: document.getElementById('syncStatus'),
         
-        // Modal
+        // Client Modal
         clientModal: document.getElementById('clientModal'),
         clientForm: document.getElementById('clientForm'),
         modalTitle: document.getElementById('modalTitle'),
@@ -53,7 +57,25 @@ function initElements() {
         clientName: document.getElementById('clientName'),
         matchPattern: document.getElementById('matchPattern'),
         clientColor: document.getElementById('clientColor'),
-        clientColorText: document.getElementById('clientColorText')
+        clientColorText: document.getElementById('clientColorText'),
+
+        // Metadata Form
+        clientSelect: document.getElementById('clientSelect'),
+        bankSelect: document.getElementById('bankSelect'),
+        addBankBtn: document.getElementById('addBankBtn'),
+        periodMonth: document.getElementById('periodMonth'),
+        periodYear: document.getElementById('periodYear'),
+        detectedMetadataDiv: document.getElementById('detectedMetadata'),
+        detectedValues: document.getElementById('detectedValues'),
+        applyDetectedBtn: document.getElementById('applyDetectedBtn'),
+
+        // Bank Modal
+        bankModal: document.getElementById('bankModal'),
+        bankForm: document.getElementById('bankForm'),
+        bankModalTitle: document.getElementById('bankModalTitle'),
+        bankId: document.getElementById('bankId'),
+        bankNameInput: document.getElementById('bankNameInput'),
+        bankPatterns: document.getElementById('bankPatterns')
     };
 }
 
@@ -97,6 +119,18 @@ function setupEventListeners() {
             closeClientModal();
         }
     });
+
+    // Bank management
+    elements.addBankBtn.addEventListener('click', () => openBankModal());
+    elements.bankForm.addEventListener('submit', handleBankSubmit);
+    elements.bankModal.addEventListener('click', (e) => {
+        if (e.target === elements.bankModal) {
+            closeBankModal();
+        }
+    });
+
+    // Auto-detection apply button
+    elements.applyDetectedBtn.addEventListener('click', applyDetectedMetadata);
 }
 
 // ========== Tab Switching ==========
@@ -157,9 +191,21 @@ async function loadClients() {
         const data = await response.json();
         clients = data.clients || [];
         renderClients();
+        renderClientSelect();
     } catch (error) {
         console.error('Failed to load clients:', error);
     }
+}
+
+function renderClientSelect() {
+    const select = elements.clientSelect;
+    select.innerHTML = '<option value="">-- Auto-detect --</option>';
+    clients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.id;
+        option.textContent = client.name;
+        select.appendChild(option);
+    });
 }
 
 function renderClients() {
@@ -303,6 +349,165 @@ async function syncToPaperless() {
     }
 }
 
+// ========== Bank Management ==========
+
+async function loadBanks() {
+    try {
+        const response = await fetch(`${API_BASE}/banks`);
+        const data = await response.json();
+        banks = data.banks || [];
+        renderBankSelect();
+    } catch (error) {
+        console.error('Failed to load banks:', error);
+    }
+}
+
+function renderBankSelect() {
+    const select = elements.bankSelect;
+    select.innerHTML = '<option value="">-- Auto-detect --</option>';
+    banks.forEach(bank => {
+        const option = document.createElement('option');
+        option.value = bank.name;
+        option.textContent = bank.name;
+        select.appendChild(option);
+    });
+}
+
+function openBankModal(bankId = null) {
+    elements.bankForm.reset();
+    elements.bankId.value = '';
+
+    if (bankId) {
+        const bank = banks.find(b => b.id === bankId);
+        if (bank) {
+            elements.bankModalTitle.textContent = 'Edit Bank';
+            elements.bankId.value = bank.id;
+            elements.bankNameInput.value = bank.name;
+            elements.bankPatterns.value = (bank.patterns || []).join(', ');
+        }
+    } else {
+        elements.bankModalTitle.textContent = 'Add Bank';
+    }
+
+    elements.bankModal.classList.add('show');
+}
+
+function closeBankModal() {
+    elements.bankModal.classList.remove('show');
+}
+
+async function handleBankSubmit(e) {
+    e.preventDefault();
+
+    const bankData = {
+        name: elements.bankNameInput.value.trim(),
+        patterns: elements.bankPatterns.value.split(',').map(p => p.trim()).filter(p => p)
+    };
+
+    const bankId = elements.bankId.value;
+
+    try {
+        let response;
+        if (bankId) {
+            response = await fetch(`${API_BASE}/banks/${bankId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bankData),
+            });
+        } else {
+            response = await fetch(`${API_BASE}/banks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bankData),
+            });
+        }
+
+        if (response.ok) {
+            closeBankModal();
+            loadBanks();
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.detail}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+function populateYearDropdown() {
+    const select = elements.periodYear;
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear; year >= currentYear - 5; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        select.appendChild(option);
+    }
+}
+
+// ========== Auto-Detection ==========
+
+async function analyzeFirstFile(files) {
+    if (files.length === 0) return;
+
+    const file = files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(`${API_BASE}/analyze`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.detected) {
+            detectedMetadata = data.detected;
+            showDetectedMetadata(data.detected);
+        }
+    } catch (error) {
+        console.error('Auto-detection failed:', error);
+    }
+}
+
+function showDetectedMetadata(detected) {
+    const container = elements.detectedValues;
+    container.innerHTML = '';
+
+    const items = [];
+    if (detected.client_name) items.push(`<div><strong>Client:</strong> ${escapeHtml(detected.client_name)}</div>`);
+    if (detected.bank_name) items.push(`<div><strong>Bank:</strong> ${escapeHtml(detected.bank_name)}</div>`);
+    if (detected.period_month && detected.period_year) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        items.push(`<div><strong>Period:</strong> ${monthNames[detected.period_month - 1]} ${detected.period_year}</div>`);
+    }
+
+    if (items.length > 0) {
+        container.innerHTML = items.join('');
+        elements.detectedMetadataDiv.style.display = 'block';
+    } else {
+        elements.detectedMetadataDiv.style.display = 'none';
+    }
+}
+
+function applyDetectedMetadata() {
+    if (!detectedMetadata) return;
+
+    if (detectedMetadata.client_id) {
+        elements.clientSelect.value = detectedMetadata.client_id;
+    }
+    if (detectedMetadata.bank_name) {
+        elements.bankSelect.value = detectedMetadata.bank_name;
+    }
+    if (detectedMetadata.period_month) {
+        elements.periodMonth.value = detectedMetadata.period_month;
+    }
+    if (detectedMetadata.period_year) {
+        elements.periodYear.value = detectedMetadata.period_year;
+    }
+}
+
 // ========== File Upload ==========
 
 function handleDragOver(e) {
@@ -338,6 +543,7 @@ function handleFileSelect(e) {
 }
 
 function addFiles(files) {
+    const isFirstUpload = selectedFiles.length === 0;
     files.forEach(file => {
         if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
             selectedFiles.push(file);
@@ -345,6 +551,11 @@ function addFiles(files) {
     });
     updateFileList();
     updateUploadButton();
+
+    // Trigger auto-detection on first file if this is the first upload
+    if (isFirstUpload && files.length > 0) {
+        analyzeFirstFile(files);
+    }
 }
 
 function removeFile(index) {
@@ -388,6 +599,11 @@ function clearFiles() {
     updateUploadButton();
     elements.resultsSection.style.display = 'none';
     elements.resultsContainer.innerHTML = '';
+
+    // Clear detected metadata
+    detectedMetadata = null;
+    elements.detectedMetadataDiv.style.display = 'none';
+    elements.detectedValues.innerHTML = '';
 }
 
 async function handleUpload() {
@@ -404,6 +620,19 @@ async function handleUpload() {
     try {
         const formData = new FormData();
         selectedFiles.forEach(file => formData.append('files', file));
+
+        // Add metadata if selected
+        const clientId = elements.clientSelect.value;
+        const bankName = elements.bankSelect.value;
+        const statementType = document.querySelector('input[name="statementType"]:checked')?.value;
+        const periodMonth = elements.periodMonth.value;
+        const periodYear = elements.periodYear.value;
+
+        if (clientId) formData.append('client_id', clientId);
+        if (bankName) formData.append('bank_name', bankName);
+        if (statementType) formData.append('statement_type', statementType);
+        if (periodMonth) formData.append('period_month', periodMonth);
+        if (periodYear) formData.append('period_year', periodYear);
 
         const response = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
@@ -505,3 +734,4 @@ window.removeFile = removeFile;
 window.editClient = openClientModal;
 window.deleteClient = deleteClient;
 window.closeClientModal = closeClientModal;
+window.closeBankModal = closeBankModal;

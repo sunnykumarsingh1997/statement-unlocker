@@ -13,7 +13,7 @@ from typing import Optional, List, Tuple
 from pathlib import Path
 from datetime import datetime
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -42,6 +42,7 @@ PAPERLESS_URL = os.getenv("PAPERLESS_URL", "http://84.247.136.87:8000")
 PAPERLESS_TOKEN = os.getenv("PAPERLESS_TOKEN", "bb02a22ccce82096e308469bde1fd85c8d675a66")
 PASSWORDS_FILE = Path(__file__).parent / "passwords.txt"
 CLIENTS_FILE = Path(__file__).parent / "clients.json"
+BANKS_FILE = Path(__file__).parent / "banks.json"
 STATIC_DIR = Path(__file__).parent / "static"
 
 # Mount static files directory
@@ -64,6 +65,15 @@ class ClientUpdate(BaseModel):
     name: Optional[str] = None
     match_pattern: Optional[str] = None
     color: Optional[str] = None
+
+class Bank(BaseModel):
+    id: Optional[str] = None
+    name: str
+    patterns: List[str] = []
+
+class BankUpdate(BaseModel):
+    name: Optional[str] = None
+    patterns: Optional[List[str]] = None
 
 
 # ========== Client Management Functions ==========
@@ -91,6 +101,43 @@ def save_clients(clients: List[dict]) -> bool:
     except Exception as e:
         print(f"Error saving clients: {e}")
         return False
+
+
+# ========== Bank Management Functions ==========
+
+def load_banks() -> List[dict]:
+    """Load banks from banks.json file"""
+    if not BANKS_FILE.exists():
+        return []
+    try:
+        with open(BANKS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("banks", [])
+    except Exception as e:
+        print(f"Error loading banks: {e}")
+        return []
+
+
+def save_banks(banks: List[dict]) -> bool:
+    """Save banks to banks.json file"""
+    try:
+        with open(BANKS_FILE, "w", encoding="utf-8") as f:
+            json.dump({"banks": banks}, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving banks: {e}")
+        return False
+
+
+def detect_bank_from_text(text: str, banks: List[dict]) -> Optional[dict]:
+    """Detect bank from PDF text using pattern matching"""
+    text_upper = text.upper()
+    for bank in banks:
+        for pattern in bank.get("patterns", []):
+            if pattern.upper() in text_upper:
+                print(f"[DEBUG] Bank detected: {bank['name']} (pattern: '{pattern}')")
+                return bank
+    return None
 
 
 def find_client_by_pattern(text: str, clients: List[dict]) -> Optional[dict]:
@@ -207,6 +254,49 @@ def get_or_create_correspondent(name: str = "Bank") -> Optional[int]:
         return new_corr["id"]
     except Exception as e:
         print(f"Error creating correspondent: {e}")
+        return None
+
+
+def get_or_create_document_type(name: str) -> Optional[int]:
+    """
+    Get existing document type or create new one in Paperless.
+    Returns the document type ID.
+    """
+    headers = get_paperless_headers()
+
+    # Search for existing document type
+    try:
+        response = requests.get(
+            f"{PAPERLESS_URL}/api/document_types/",
+            headers=headers,
+            params={"name__iexact": name},
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        results = data.get("results", [])
+        for doc_type in results:
+            if doc_type.get("name", "").lower() == name.lower():
+                print(f"[DEBUG] Found existing document type: {name} (ID: {doc_type['id']})")
+                return doc_type["id"]
+    except Exception as e:
+        print(f"Error searching for document type: {e}")
+
+    # Create new document type
+    try:
+        response = requests.post(
+            f"{PAPERLESS_URL}/api/document_types/",
+            headers=headers,
+            json={"name": name},
+            timeout=30
+        )
+        response.raise_for_status()
+        new_doc_type = response.json()
+        print(f"[DEBUG] Created new document type: {name} (ID: {new_doc_type['id']})")
+        return new_doc_type["id"]
+    except Exception as e:
+        print(f"Error creating document type: {e}")
         return None
 
 
@@ -437,26 +527,30 @@ def generate_filename(metadata: dict, original_filename: str) -> str:
     return filename
 
 
-def upload_to_paperless(pdf_bytes: bytes, filename: str, title: Optional[str] = None, 
-                        tag_id: Optional[int] = None, correspondent_id: Optional[int] = None):
+def upload_to_paperless(pdf_bytes: bytes, filename: str, title: Optional[str] = None,
+                        tags: Optional[List[int]] = None, correspondent_id: Optional[int] = None,
+                        document_type_id: Optional[int] = None):
     """
     Upload unlocked PDF to Paperless-ngx via API.
-    Attaches tag and correspondent IDs if provided.
+    Attaches tags, correspondent, and document type IDs if provided.
     """
     endpoint = f"{PAPERLESS_URL}/api/documents/post_document/"
     headers = get_paperless_headers()
-    
+
     files = {
         "document": (filename, io.BytesIO(pdf_bytes), "application/pdf")
     }
-    
+
     data = {}
     if title:
         data["title"] = title
-    if tag_id:
-        data["tags"] = tag_id
+    if tags:
+        # Paperless accepts multiple tags as comma-separated string
+        data["tags"] = ",".join(str(t) for t in tags)
     if correspondent_id:
         data["correspondent"] = correspondent_id
+    if document_type_id:
+        data["document_type"] = document_type_id
     
     try:
         response = requests.post(endpoint, headers=headers, files=files, data=data, timeout=60)
@@ -601,29 +695,93 @@ def delete_client(client_id: str):
     raise HTTPException(status_code=404, detail="Client not found")
 
 
+# ========== Bank Management Endpoints ==========
+
+@app.get("/api/banks")
+def get_banks():
+    """Get all banks from banks.json"""
+    banks = load_banks()
+    return {"banks": banks, "count": len(banks)}
+
+
+@app.post("/api/banks")
+def add_bank(bank: Bank):
+    """Add a new bank"""
+    banks = load_banks()
+    new_bank = bank.dict()
+    if not new_bank.get("id"):
+        new_bank["id"] = sanitize_filename(bank.name).lower()
+
+    # Check for duplicate
+    for existing in banks:
+        if existing["id"] == new_bank["id"]:
+            raise HTTPException(status_code=400, detail="A bank with this ID already exists")
+
+    banks.append(new_bank)
+    if save_banks(banks):
+        return {"success": True, "bank": new_bank}
+    raise HTTPException(status_code=500, detail="Failed to save bank")
+
+
+@app.put("/api/banks/{bank_id}")
+def update_bank(bank_id: str, bank_update: BankUpdate):
+    """Update an existing bank"""
+    banks = load_banks()
+    for i, bank in enumerate(banks):
+        if bank["id"] == bank_id:
+            if bank_update.name is not None:
+                banks[i]["name"] = bank_update.name
+            if bank_update.patterns is not None:
+                banks[i]["patterns"] = bank_update.patterns
+            if save_banks(banks):
+                return {"success": True, "bank": banks[i]}
+            raise HTTPException(status_code=500, detail="Failed to save bank")
+    raise HTTPException(status_code=404, detail="Bank not found")
+
+
+@app.delete("/api/banks/{bank_id}")
+def delete_bank(bank_id: str):
+    """Delete a bank"""
+    banks = load_banks()
+    for i, bank in enumerate(banks):
+        if bank["id"] == bank_id:
+            deleted = banks.pop(i)
+            if save_banks(banks):
+                return {"success": True, "deleted": deleted}
+            raise HTTPException(status_code=500, detail="Failed to save banks")
+    raise HTTPException(status_code=404, detail="Bank not found")
+
+
 # ========== Paperless Sync Endpoint ==========
 
 @app.post("/api/sync-paperless")
 def sync_to_paperless():
     """
     Sync all clients to Paperless-ngx.
-    Creates/updates tags for each client and ensures 'Bank' correspondent exists.
+    Creates correspondent for each client (client name as correspondent).
+    Creates tags for each client.
     """
     clients = load_clients()
     results = []
-    
-    # Ensure "Bank" correspondent exists
-    bank_correspondent_id = get_or_create_correspondent("Bank")
-    
+
     for client in clients:
         result = {
             "client_name": client["name"],
             "tag_created": False,
+            "correspondent_created": False,
             "tag_id": None,
+            "correspondent_id": None,
             "error": None
         }
-        
+
         try:
+            # Create correspondent for this client (client name as correspondent)
+            correspondent_id = get_or_create_correspondent(client["name"])
+            if correspondent_id:
+                result["correspondent_created"] = True
+                result["correspondent_id"] = correspondent_id
+                client["correspondent_id"] = correspondent_id
+
             # Create tag named "Client: {Name}"
             tag_name = f"Client: {client['name']}"
             tag_id = get_or_create_tag(
@@ -631,51 +789,128 @@ def sync_to_paperless():
                 color=client.get("color", "#3b82f6"),
                 match_pattern=client.get("match_pattern", "")
             )
-            
+
             if tag_id:
                 result["tag_created"] = True
                 result["tag_id"] = tag_id
-                
-                # Update client with tag_id
                 client["tag_id"] = tag_id
-                client["correspondent_id"] = bank_correspondent_id
             else:
                 result["error"] = "Failed to create tag"
         except Exception as e:
             result["error"] = str(e)
-        
+
         results.append(result)
-    
-    # Save updated clients with tag_ids
+
+    # Save updated clients with tag_ids and correspondent_ids
     save_clients(clients)
-    
+
     return {
         "success": True,
-        "bank_correspondent_id": bank_correspondent_id,
         "results": results
+    }
+
+
+# ========== PDF Analysis Endpoint ==========
+
+@app.post("/api/analyze")
+async def analyze_pdf(file: UploadFile = File(...)):
+    """
+    Analyze a PDF and return auto-detected metadata.
+    Used for pre-filling the metadata form before upload.
+    """
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    try:
+        pdf_bytes = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+
+    passwords = load_passwords()
+    clients = load_clients()
+    banks = load_banks()
+
+    # Try to unlock
+    unlocked_pdf, is_unlocked = try_unlock_pdf(pdf_bytes, passwords)
+
+    # Extract text
+    text = extract_text_from_pdf(unlocked_pdf if is_unlocked else pdf_bytes)
+
+    # Detect client
+    matched_client = find_client_by_pattern(text, clients)
+
+    # Detect bank
+    detected_bank = detect_bank_from_text(text, banks)
+
+    # Extract period using existing logic
+    metadata = extract_metadata(unlocked_pdf if is_unlocked else pdf_bytes, clients)
+    period = metadata.get('period', '')
+    period_month = None
+    period_year = None
+    if period and '-' in period:
+        parts = period.split('-')
+        if len(parts) == 2:
+            try:
+                period_year = int(parts[0])
+                period_month = int(parts[1])
+            except ValueError:
+                pass
+
+    return {
+        "success": True,
+        "unlocked": is_unlocked,
+        "detected": {
+            "client_id": matched_client.get("id") if matched_client else None,
+            "client_name": matched_client.get("name") if matched_client else None,
+            "bank_id": detected_bank.get("id") if detected_bank else None,
+            "bank_name": detected_bank.get("name") if detected_bank else None,
+            "period_month": period_month,
+            "period_year": period_year,
+            "owner_name": metadata.get("owner_name")
+        }
     }
 
 
 # ========== File Upload Endpoint ==========
 
 @app.post("/api/upload")
-async def bulk_upload(files: List[UploadFile] = File(...)):
+async def bulk_upload(
+    files: List[UploadFile] = File(...),
+    client_id: Optional[str] = Form(None),
+    bank_name: Optional[str] = Form(None),
+    statement_type: Optional[str] = Form(None),
+    period_month: Optional[int] = Form(None),
+    period_year: Optional[int] = Form(None)
+):
     """
     Bulk upload endpoint: Process multiple PDF files.
-    Unlocks, analyzes (using clients.json), renames, and uploads to Paperless-ngx
-    with attached tag and correspondent IDs.
+    Unlocks, analyzes, renames, and uploads to Paperless-ngx
+    with client-based correspondents, document types, and tags.
+
+    Metadata can be pre-selected or auto-detected from PDF content.
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
-    
+
     passwords = load_passwords()
     clients = load_clients()
-    
-    # Ensure "Bank" correspondent exists
-    bank_correspondent_id = get_or_create_correspondent("Bank")
-    
+    banks = load_banks()
+
+    # Get pre-selected client if provided
+    selected_client = None
+    if client_id:
+        for c in clients:
+            if c["id"] == client_id:
+                selected_client = c
+                break
+
+    # Get document type ID if statement_type is provided
+    document_type_id = None
+    if statement_type:
+        document_type_id = get_or_create_document_type(statement_type)
+
     results = []
-    
+
     for file in files:
         result = {
             "filename": file.filename,
@@ -684,18 +919,19 @@ async def bulk_upload(files: List[UploadFile] = File(...)):
             "unlocked": False,
             "renamed_filename": None,
             "metadata": None,
-            "tag_id": None,
+            "tags": [],
             "correspondent_id": None,
+            "document_type_id": None,
             "error": None
         }
-        
+
         try:
             if not file.filename or not file.filename.lower().endswith('.pdf'):
                 result["message"] = "Only PDF files are supported"
                 result["error"] = "Invalid file type"
                 results.append(result)
                 continue
-            
+
             try:
                 pdf_bytes = await file.read()
             except Exception as e:
@@ -703,62 +939,119 @@ async def bulk_upload(files: List[UploadFile] = File(...)):
                 result["error"] = str(e)
                 results.append(result)
                 continue
-            
+
             if len(pdf_bytes) == 0:
                 result["message"] = "Empty file uploaded"
                 result["error"] = "Empty file"
                 results.append(result)
                 continue
-            
+
             # Unlock PDF
             unlocked_pdf, is_unlocked = try_unlock_pdf(pdf_bytes, passwords)
             result["unlocked"] = is_unlocked
-            
+
             if not is_unlocked:
                 result["message"] = "PDF could not be unlocked with available passwords"
-            
-            # Extract metadata using clients.json
-            try:
-                metadata = extract_metadata(unlocked_pdf, clients)
-                result["metadata"] = {
-                    "owner_name": metadata.get("owner_name"),
-                    "period": metadata.get("period"),
-                    "matched_client": metadata.get("matched_client", {}).get("name") if metadata.get("matched_client") else None
-                }
-            except Exception as e:
-                print(f"Error extracting metadata from {file.filename}: {e}")
-                metadata = {'owner_name': 'Unknown', 'period': datetime.now().strftime('%Y-%m')}
-                result["metadata"] = metadata
-            
-            # Generate filename: {Owner}_{Period}.pdf
-            intelligent_filename = generate_filename(metadata, file.filename)
+
+            # Extract text for auto-detection
+            text = extract_text_from_pdf(unlocked_pdf if is_unlocked else pdf_bytes)
+
+            # Determine client (pre-selected or auto-detected)
+            final_client = selected_client
+            if not final_client:
+                final_client = find_client_by_pattern(text, clients)
+
+            # Determine bank (pre-selected or auto-detected)
+            final_bank_name = bank_name
+            if not final_bank_name:
+                detected_bank = detect_bank_from_text(text, banks)
+                if detected_bank:
+                    final_bank_name = detected_bank.get("name")
+
+            # Determine period (pre-selected or auto-detected)
+            final_period = None
+            if period_month and period_year:
+                final_period = f"{period_year}-{str(period_month).zfill(2)}"
+            else:
+                # Auto-detect from PDF
+                metadata = extract_metadata(unlocked_pdf if is_unlocked else pdf_bytes, clients)
+                final_period = metadata.get("period", datetime.now().strftime('%Y-%m'))
+
+            # Build metadata for response
+            result["metadata"] = {
+                "client_name": final_client.get("name") if final_client else "Unknown",
+                "bank_name": final_bank_name or "Unknown",
+                "period": final_period,
+                "statement_type": statement_type
+            }
+
+            # Generate filename: {Client}_{Bank}_{Period}.pdf
+            client_name = sanitize_filename(final_client.get("name", "Unknown")) if final_client else "Unknown"
+            bank_clean = sanitize_filename(final_bank_name) if final_bank_name else ""
+
+            if bank_clean:
+                intelligent_filename = f"{client_name}_{bank_clean}_{final_period}.pdf"
+            else:
+                intelligent_filename = f"{client_name}_{final_period}.pdf"
             result["renamed_filename"] = intelligent_filename
-            
-            # Get tag and correspondent IDs
-            tag_id = None
-            matched_client = metadata.get("matched_client")
-            if matched_client:
-                # Use the client's tag_id if available, otherwise create it
-                tag_id = matched_client.get("tag_id")
-                if not tag_id:
-                    tag_name = f"Client: {matched_client['name']}"
-                    tag_id = get_or_create_tag(
+
+            # Create correspondent for client (not hardcoded "Bank")
+            correspondent_id = None
+            if final_client:
+                # Check if client already has correspondent_id cached
+                correspondent_id = final_client.get("correspondent_id")
+                if not correspondent_id:
+                    correspondent_id = get_or_create_correspondent(final_client.get("name"))
+            result["correspondent_id"] = correspondent_id
+
+            # Create tags: client tag + bank tag + period tag
+            tag_ids = []
+
+            # Client tag
+            if final_client:
+                client_tag_id = final_client.get("tag_id")
+                if not client_tag_id:
+                    tag_name = f"Client: {final_client['name']}"
+                    client_tag_id = get_or_create_tag(
                         tag_name=tag_name,
-                        color=matched_client.get("color", "#3b82f6"),
-                        match_pattern=matched_client.get("match_pattern", "")
+                        color=final_client.get("color", "#3b82f6")
                     )
-            
-            result["tag_id"] = tag_id
-            result["correspondent_id"] = bank_correspondent_id
-            
-            # Upload to Paperless with tag and correspondent
+                if client_tag_id:
+                    tag_ids.append(client_tag_id)
+
+            # Bank tag
+            if final_bank_name:
+                bank_tag_id = get_or_create_tag(final_bank_name, color="#10b981")
+                if bank_tag_id:
+                    tag_ids.append(bank_tag_id)
+
+            # Period tag (Month-Year format)
+            if final_period:
+                month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                try:
+                    year, month = final_period.split('-')
+                    month_idx = int(month) - 1
+                    if 0 <= month_idx < 12:
+                        period_tag_name = f"{month_names[month_idx]}-{year}"
+                        period_tag_id = get_or_create_tag(period_tag_name, color="#8b5cf6")
+                        if period_tag_id:
+                            tag_ids.append(period_tag_id)
+                except (ValueError, IndexError):
+                    pass
+
+            result["tags"] = tag_ids
+            result["document_type_id"] = document_type_id
+
+            # Upload to Paperless with all metadata
             try:
                 paperless_response = upload_to_paperless(
                     unlocked_pdf,
                     intelligent_filename,
                     title=intelligent_filename,
-                    tag_id=tag_id,
-                    correspondent_id=bank_correspondent_id
+                    tags=tag_ids if tag_ids else None,
+                    correspondent_id=correspondent_id,
+                    document_type_id=document_type_id
                 )
                 result["success"] = True
                 result["message"] = f"Successfully uploaded as {intelligent_filename}"
@@ -770,13 +1063,13 @@ async def bulk_upload(files: List[UploadFile] = File(...)):
             except Exception as e:
                 result["message"] = f"Upload failed: {str(e)}"
                 result["error"] = str(e)
-        
+
         except Exception as e:
             result["message"] = f"Unexpected error: {str(e)}"
             result["error"] = str(e)
-        
+
         results.append(result)
-    
+
     return {
         "success": True,
         "processed": len(results),

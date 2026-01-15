@@ -1,0 +1,19 @@
+{
+  "banks": [
+    {"id": "hdfc", "name": "HDFC Bank", "patterns": ["HDFC", "HDFC Bank", "HDFC BANK"]},
+    {"id": "icici", "name": "ICICI Bank", "patterns": ["ICICI", "ICICI Bank", "ICICI BANK"]},
+    {"id": "sbi", "name": "State Bank of India", "patterns": ["SBI", "State Bank", "STATE BANK OF INDIA"]},
+    {"id": "axis", "name": "Axis Bank", "patterns": ["AXIS", "Axis Bank", "AXIS BANK"]},
+    {"id": "kotak", "name": "Kotak Mahindra Bank", "patterns": ["Kotak", "Kotak Mahindra", "KOTAK MAHINDRA"]},
+    {"id": "idfc", "name": "IDFC First Bank", "patterns": ["IDFC", "IDFC First", "IDFC FIRST"]},
+    {"id": "yes", "name": "YES Bank", "patterns": ["YES Bank", "Yes Bank", "YES BANK"]},
+    {"id": "rbl", "name": "RBL Bank", "patterns": ["RBL", "RBL Bank", "RBL BANK"]},
+    {"id": "indusind", "name": "IndusInd Bank", "patterns": ["IndusInd", "Indusind Bank", "INDUSIND"]},
+    {"id": "pnb", "name": "Punjab National Bank", "patterns": ["PNB", "Punjab National", "PUNJAB NATIONAL"]},
+    {"id": "bob", "name": "Bank of Baroda", "patterns": ["BOB", "Bank of Baroda", "BANK OF BARODA"]},
+    {"id": "canara", "name": "Canara Bank", "patterns": ["Canara", "Canara Bank", "CANARA BANK"]},
+    {"id": "union", "name": "Union Bank of India", "patterns": ["Union Bank", "UNION BANK"]},
+    {"id": "federal", "name": "Federal Bank", "patterns": ["Federal", "Federal Bank", "FEDERAL BANK"]},
+    {"id": "au", "name": "AU Small Finance Bank", "patterns": ["AU Bank", "AU Small Finance", "AU SMALL FINANCE"]}
+  ]
+}
