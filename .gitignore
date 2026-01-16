@@ -37,3 +37,4 @@ backend-unlocker/passwords.txt
 # IDEs
 .vscode/
 .idea/
+.claude/
