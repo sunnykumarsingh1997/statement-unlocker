@@ -160,144 +160,50 @@ def save_banks(banks: List[dict]) -> bool:
         return False
 
 
-def detect_bank_from_text(text: str, banks: List[dict], auto_add: bool = True) -> Optional[dict]:
-    """
-    Detect bank from PDF text using pattern matching with confidence scoring.
-    Uses word boundaries and counts occurrences for better accuracy.
-
-    Args:
-        text: PDF text content
-        banks: List of bank definitions
-        auto_add: If True, auto-add detected but unknown banks to banks.json
-    """
+def detect_bank_from_text(text: str, banks: List[dict]) -> Optional[dict]:
+    """Simple bank detection - just check if any pattern exists in text"""
     if not text:
         return None
-
-    text_lower = text.lower()
-    best_match = None
-    best_score = 0
-
+    text_upper = text.upper()
     for bank in banks:
-        bank_score = 0
-        matched_pattern = None
-
         for pattern in bank.get("patterns", []):
-            # Use word boundary regex for more accurate matching
-            pattern_regex = r'\b' + re.escape(pattern.lower()) + r'\b'
-            matches = re.findall(pattern_regex, text_lower, re.IGNORECASE)
-            count = len(matches)
-
-            if count > 0:
-                # Score based on occurrence count and pattern length
-                # Longer patterns are more specific, so weight them higher
-                score = count * (len(pattern) / 10)
-                if score > bank_score:
-                    bank_score = score
-                    matched_pattern = pattern
-
-        if bank_score > best_score:
-            best_score = bank_score
-            best_match = bank.copy()
-            best_match["_matched_pattern"] = matched_pattern
-            best_match["_confidence"] = bank_score
-
-    if best_match:
-        print(f"[DEBUG] Bank detected: {best_match['name']} "
-              f"(pattern: '{best_match.get('_matched_pattern')}', confidence: {best_score:.2f})")
-        return best_match
-
-    # Try to detect unknown banks if auto_add is enabled
-    if auto_add:
-        # Common bank name patterns in Indian statements
-        unknown_bank_patterns = [
-            r'([A-Z][A-Za-z]+\s+Bank)\b',  # "Something Bank"
-            r'\b(Bank\s+of\s+[A-Z][A-Za-z]+)\b',  # "Bank of Something"
-            r'\b([A-Z]{2,5})\s+Bank\b',  # "XYZ Bank" (abbreviations)
-        ]
-
-        for pattern in unknown_bank_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                detected_name = match.group(1).strip()
-                # Check it's not already in banks list
-                if not any(detected_name.lower() == b["name"].lower() for b in banks):
-                    print(f"[DEBUG] Auto-detected unknown bank: {detected_name}")
-                    new_bank = auto_add_bank(detected_name)
-                    if new_bank:
-                        return new_bank
-
+            if pattern.upper() in text_upper:
+                return bank
     return None
 
 
-def auto_add_bank(bank_name: str) -> Optional[dict]:
-    """Auto-add a newly detected bank to banks.json"""
-    banks = load_banks()
-
-    # Generate ID from name
-    bank_id = sanitize_filename(bank_name).lower()
-
-    # Check if already exists
+def detect_bank_from_filename(filename: str, banks: List[dict]) -> Optional[dict]:
+    """Detect bank from filename"""
+    if not filename:
+        return None
+    filename_upper = filename.upper()
     for bank in banks:
-        if bank["id"] == bank_id or bank["name"].lower() == bank_name.lower():
-            return bank
-
-    # Create new bank entry
-    new_bank = {
-        "id": bank_id,
-        "name": bank_name,
-        "patterns": [bank_name, bank_name.upper(), bank_name.lower()]
-    }
-
-    banks.append(new_bank)
-    if save_banks(banks):
-        print(f"[DEBUG] Auto-added bank to banks.json: {bank_name}")
-        return new_bank
+        for pattern in bank.get("patterns", []):
+            if pattern.upper() in filename_upper:
+                return bank
     return None
 
 
 def find_client_by_pattern(text: str, clients: List[dict]) -> Optional[dict]:
-    """
-    Find a client whose match_pattern exists in the given text.
-    Uses case-insensitive matching and word boundary detection for account numbers.
-    """
+    """Simple client detection - check if match_pattern exists in text"""
     if not text:
         return None
-
-    text_lower = text.lower()
-    best_match = None
-    best_score = 0
-
     for client in clients:
         pattern = client.get("match_pattern", "")
-        if not pattern:
-            continue
+        if pattern and pattern in text:
+            return client
+    return None
 
-        pattern_lower = pattern.lower()
-        score = 0
 
-        # Try exact match first (case-insensitive)
-        if pattern_lower in text_lower:
-            # Count occurrences for confidence
-            count = text_lower.count(pattern_lower)
-            score = count * len(pattern)  # Longer patterns = more specific
-
-        # Try with word boundaries (for account numbers)
-        if score == 0:
-            # Account numbers may have spaces or dashes around them
-            pattern_regex = r'(?:^|[\s\-:/])' + re.escape(pattern_lower) + r'(?:[\s\-:/]|$)'
-            matches = re.findall(pattern_regex, text_lower)
-            if matches:
-                score = len(matches) * len(pattern)
-
-        if score > best_score:
-            best_score = score
-            best_match = client
-
-    if best_match:
-        print(f"[DEBUG] Client matched: {best_match['name']} "
-              f"(pattern: '{best_match.get('match_pattern')}', confidence: {best_score})")
-        return best_match
-
+def find_client_by_filename(filename: str, clients: List[dict]) -> Optional[dict]:
+    """Find client from filename"""
+    if not filename:
+        return None
+    filename_lower = filename.lower()
+    for client in clients:
+        name = client.get("name", "").lower()
+        if name and name in filename_lower:
+            return client
     return None
 
 
@@ -598,16 +504,12 @@ def try_single_password(pdf_bytes: bytes, password: str) -> Dict[str, Any]:
     return result
 
 
-def extract_text_from_pdf(pdf_bytes: bytes, max_pages: int = 5) -> str:
-    """
-    Extract text from PDF for pattern matching.
-    Scans up to max_pages (default 5) for better detection.
-    """
+def extract_text_from_pdf(pdf_bytes: bytes, max_pages: int = 3) -> str:
+    """Extract text from first few pages of PDF"""
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             all_text = ""
-            pages_to_scan = min(len(pdf.pages), max_pages)
-            for page in pdf.pages[:pages_to_scan]:
+            for page in pdf.pages[:max_pages]:
                 page_text = page.extract_text() or ""
                 all_text += page_text + "\n"
             return all_text
@@ -616,184 +518,73 @@ def extract_text_from_pdf(pdf_bytes: bytes, max_pages: int = 5) -> str:
         return ""
 
 
-def extract_metadata(pdf_bytes: bytes, clients: List[dict]) -> dict:
+def extract_period_from_filename(filename: str) -> Optional[str]:
     """
-    Extract metadata from bank statement PDF.
-    Uses clients.json for owner detection, falls back to regex patterns.
-    Returns owner name and period only.
+    Extract period (YYYY-MM) from filename.
+    Looks for patterns like: 2024-01, 202401, Jan2024, January_2024, etc.
+    """
+    if not filename:
+        return None
+
+    # Pattern: YYYY-MM or YYYY_MM
+    match = re.search(r'(20\d{2})[-_](\d{2})', filename)
+    if match:
+        return f"{match.group(1)}-{match.group(2)}"
+
+    # Pattern: YYYYMM (6 digits starting with 20)
+    match = re.search(r'(20\d{2})(\d{2})', filename)
+    if match:
+        month = int(match.group(2))
+        if 1 <= month <= 12:
+            return f"{match.group(1)}-{match.group(2)}"
+
+    # Pattern: Month name + Year (Jan2024, January_2024, etc.)
+    month_names = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    filename_lower = filename.lower()
+    for i, month in enumerate(month_names):
+        match = re.search(rf'{month}\w*[-_\s]*(20\d{{2}})', filename_lower)
+        if match:
+            return f"{match.group(1)}-{str(i+1).zfill(2)}"
+        match = re.search(rf'(20\d{{2}})[-_\s]*{month}', filename_lower)
+        if match:
+            return f"{match.group(1)}-{str(i+1).zfill(2)}"
+
+    return None
+
+
+def extract_metadata_from_filename(filename: str, clients: List[dict], banks: List[dict]) -> dict:
+    """
+    Simple metadata extraction from filename.
+    This is the primary method - simple and reliable.
     """
     metadata = {
-        'owner_name': 'Unknown',
-        'period': datetime.now().strftime('%Y-%m'),
-        'matched_client': None,
-        'raw_text_preview': ''
+        'owner_name': None,
+        'period': None,
+        'bank_name': None,
+        'client': None,
+        'bank': None
     }
 
-    try:
-        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            if len(pdf.pages) == 0:
-                return metadata
+    if not filename:
+        return metadata
 
-            # Extract text from first 5 pages for better detection
-            all_text = ""
-            pages_to_scan = min(len(pdf.pages), 5)
-            for page in pdf.pages[:pages_to_scan]:
-                page_text = page.extract_text() or ""
-                all_text += page_text + "\n"
+    # Try to find client name in filename
+    client = find_client_by_filename(filename, clients)
+    if client:
+        metadata['owner_name'] = client['name']
+        metadata['client'] = client
 
-            if not all_text:
-                return metadata
+    # Try to find bank in filename
+    bank = detect_bank_from_filename(filename, banks)
+    if bank:
+        metadata['bank_name'] = bank['name']
+        metadata['bank'] = bank
 
-            metadata['raw_text_preview'] = all_text[:500]
+    # Try to find period in filename
+    period = extract_period_from_filename(filename)
+    if period:
+        metadata['period'] = period
 
-            # ========== CLIENT-BASED OWNER DETECTION ==========
-            # Check if any client's match_pattern exists in the PDF
-            matched_client = find_client_by_pattern(all_text, clients)
-            if matched_client:
-                metadata['owner_name'] = matched_client['name']
-                metadata['matched_client'] = matched_client
-                print(f"[DEBUG] Owner from client match: {matched_client['name']}")
-            else:
-                # Fallback to regex-based name extraction
-                name_patterns = [
-                    r'Account\s*(?:Holder|Name)[:\s]+([A-Z][A-Za-z\s\.]+?)(?:\n|\r|Account|$)',
-                    r'Customer\s*Name[:\s]+([A-Z][A-Za-z\s\.]+?)(?:\n|\r|$)',
-                    r'Name[:\s]+([A-Z][A-Za-z\s\.]+?)(?:\n|\r|Address|$)',
-                    r'(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+([A-Z][A-Za-z\s]+?)(?:\n|\r|$)',
-                    r'Dear\s+([A-Z][A-Za-z\s]+?)(?:,|\n|\r|$)',
-                ]
-
-                for pattern in name_patterns:
-                    match = re.search(pattern, all_text, re.MULTILINE)
-                    if match:
-                        name = match.group(1).strip()
-                        name = re.sub(r'\s+', ' ', name)
-                        name = re.sub(r'\b(?:Account|No|Number|A/c|Statement|Branch)\b', '', name, flags=re.IGNORECASE)
-                        name = name.strip()
-                        if 3 < len(name) < 50:
-                            metadata['owner_name'] = name.title()
-                            print(f"[DEBUG] Owner from regex: {name}")
-                            break
-
-            # ========== DATE/PERIOD EXTRACTION (IMPROVED) ==========
-            month_names = ['january', 'february', 'march', 'april', 'may', 'june',
-                          'july', 'august', 'september', 'october', 'november', 'december']
-            month_abbrev = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
-                           'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-
-            period_found = False
-
-            # Approach 0: Look for explicit "Statement Period" or "Billing Period"
-            period_patterns = [
-                r'(?:Statement|Billing|Account)\s*Period[:\s]+.*?(\d{1,2})[/\-\s](\d{1,2}|\w{3,9})[/\-\s](\d{4})\s*(?:to|To|TO|-|–|upto)\s*(\d{1,2})[/\-\s](\d{1,2}|\w{3,9})[/\-\s](\d{4})',
-                r'(?:From|Period)\s*[:\s]*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|To|TO|-|–)\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})',
-            ]
-
-            for pattern in period_patterns:
-                match = re.search(pattern, all_text, re.IGNORECASE)
-                if match:
-                    # Use end date for period
-                    try:
-                        end_month = match.group(5)
-                        end_year = match.group(6)
-                        # Handle month name vs number
-                        if end_month.isdigit():
-                            month_num = int(end_month)
-                        else:
-                            end_month_lower = end_month.lower()[:3]
-                            if end_month_lower in month_abbrev:
-                                month_num = month_abbrev.index(end_month_lower) + 1
-                            else:
-                                continue
-                        if 1 <= month_num <= 12:
-                            metadata['period'] = f"{end_year}-{str(month_num).zfill(2)}"
-                            period_found = True
-                            print(f"[DEBUG] Period from billing period: {metadata['period']}")
-                            break
-                    except (ValueError, IndexError):
-                        continue
-
-            # Approach 1: Month names with year (e.g., "December 2024", "Dec-2024")
-            if not period_found:
-                month_year_pattern = r'\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[,\s\-\']+(\d{4})\b'
-                matches = re.findall(month_year_pattern, all_text, re.IGNORECASE)
-                if matches:
-                    # Use the last occurrence (usually the statement period)
-                    month_str, year = matches[-1]
-                    try:
-                        if month_str.lower() in month_names:
-                            month_num = month_names.index(month_str.lower()) + 1
-                        else:
-                            month_num = month_abbrev.index(month_str.lower()[:3]) + 1
-                        metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
-                        period_found = True
-                        print(f"[DEBUG] Period from month-year: {metadata['period']}")
-                    except (ValueError, IndexError):
-                        pass
-
-            # Approach 2: Indian date formats DD/MM/YYYY or DD-MM-YYYY ranges
-            if not period_found:
-                date_range_pattern = r'(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|To|TO|-|–|upto)\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})'
-                match = re.search(date_range_pattern, all_text)
-                if match:
-                    end_day, end_month, end_year = match.group(4), match.group(5), match.group(6)
-                    try:
-                        if 1 <= int(end_month) <= 12:
-                            metadata['period'] = f"{end_year}-{end_month.zfill(2)}"
-                            period_found = True
-                            print(f"[DEBUG] Period from date range: {metadata['period']}")
-                    except ValueError:
-                        pass
-
-            # Approach 3: DD-MMM-YYYY format (e.g., "31-Dec-2024")
-            if not period_found:
-                dd_mmm_yyyy_pattern = r'(\d{1,2})[/\-\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/\-\s,\']+(\d{4})'
-                matches = re.findall(dd_mmm_yyyy_pattern, all_text, re.IGNORECASE)
-                if matches:
-                    day, month_str, year = matches[-1]
-                    try:
-                        month_num = month_abbrev.index(month_str.lower()[:3]) + 1
-                        metadata['period'] = f"{year}-{str(month_num).zfill(2)}"
-                        period_found = True
-                        print(f"[DEBUG] Period from DD-MMM-YYYY: {metadata['period']}")
-                    except (ValueError, IndexError):
-                        pass
-
-            # Approach 4: Statement date line
-            if not period_found:
-                stmt_date_pattern = r'Statement\s*(?:Date|Period|For|of)[:\s]+(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})'
-                match = re.search(stmt_date_pattern, all_text, re.IGNORECASE)
-                if match:
-                    day, month, year = match.group(1), match.group(2), match.group(3)
-                    try:
-                        if 1 <= int(month) <= 12:
-                            metadata['period'] = f"{year}-{month.zfill(2)}"
-                            period_found = True
-                            print(f"[DEBUG] Period from statement date: {metadata['period']}")
-                    except ValueError:
-                        pass
-
-            # Approach 5: Any dates in DD/MM/YYYY format, use latest
-            if not period_found:
-                all_dates = re.findall(r'(\d{1,2})[/\-](\d{1,2})[/\-](20\d{2})', all_text)
-                if all_dates:
-                    valid_dates = []
-                    for day, month, year in all_dates:
-                        try:
-                            if 1 <= int(month) <= 12 and 1 <= int(day) <= 31:
-                                valid_dates.append((year, month, day))
-                        except ValueError:
-                            continue
-                    if valid_dates:
-                        valid_dates.sort(reverse=True)
-                        year, month, day = valid_dates[0]
-                        metadata['period'] = f"{year}-{month.zfill(2)}"
-    
-    except Exception as e:
-        print(f"Error extracting metadata: {e}")
-        import traceback
-        traceback.print_exc()
-    
     return metadata
 
 
@@ -1110,7 +901,7 @@ def sync_to_paperless():
 @app.post("/api/analyze")
 async def analyze_pdf(file: UploadFile = File(...)):
     """
-    Analyze a PDF and return auto-detected metadata.
+    Analyze a PDF and return auto-detected metadata from filename.
     Used for pre-filling the metadata form before upload.
     """
     if not file.filename or not file.filename.lower().endswith('.pdf'):
@@ -1125,22 +916,13 @@ async def analyze_pdf(file: UploadFile = File(...)):
     clients = load_clients()
     banks = load_banks()
 
-    # Try to unlock (with new dict-based return)
+    # Try to unlock
     unlock_result = try_unlock_pdf(pdf_bytes, passwords)
     is_unlocked = unlock_result["unlocked"]
-    unlocked_pdf = unlock_result["pdf_bytes"]
 
-    # Extract text
-    text = extract_text_from_pdf(unlocked_pdf if is_unlocked else pdf_bytes)
+    # Extract metadata from filename (simple approach)
+    metadata = extract_metadata_from_filename(file.filename, clients, banks)
 
-    # Detect client
-    matched_client = find_client_by_pattern(text, clients)
-
-    # Detect bank
-    detected_bank = detect_bank_from_text(text, banks)
-
-    # Extract period using existing logic
-    metadata = extract_metadata(unlocked_pdf if is_unlocked else pdf_bytes, clients)
     period = metadata.get('period', '')
     period_month = None
     period_year = None
@@ -1159,10 +941,10 @@ async def analyze_pdf(file: UploadFile = File(...)):
         "timeout": unlock_result.get("timeout", False),
         "attempts": unlock_result.get("attempts", 0),
         "detected": {
-            "client_id": matched_client.get("id") if matched_client else None,
-            "client_name": matched_client.get("name") if matched_client else None,
-            "bank_id": detected_bank.get("id") if detected_bank else None,
-            "bank_name": detected_bank.get("name") if detected_bank else None,
+            "client_id": metadata['client'].get("id") if metadata.get('client') else None,
+            "client_name": metadata.get('owner_name'),
+            "bank_id": metadata['bank'].get("id") if metadata.get('bank') else None,
+            "bank_name": metadata.get('bank_name'),
             "period_month": period_month,
             "period_year": period_year,
             "owner_name": metadata.get("owner_name")
@@ -1215,15 +997,11 @@ async def unlock_pdf_manual(
             save_passwords(passwords)
             print(f"[DEBUG] Added new password to global list")
 
-    # Extract metadata from unlocked PDF
+    # Extract metadata from filename (simple approach)
     clients = load_clients()
     banks = load_banks()
-    unlocked_pdf = result["pdf_bytes"]
 
-    text = extract_text_from_pdf(unlocked_pdf)
-    matched_client = find_client_by_pattern(text, clients)
-    detected_bank = detect_bank_from_text(text, banks)
-    metadata = extract_metadata(unlocked_pdf, clients)
+    metadata = extract_metadata_from_filename(file.filename, clients, banks)
 
     period = metadata.get('period', '')
     period_month = None
@@ -1243,10 +1021,10 @@ async def unlock_pdf_manual(
         "message": "PDF unlocked successfully",
         "password_saved": save_password,
         "detected": {
-            "client_id": matched_client.get("id") if matched_client else None,
-            "client_name": matched_client.get("name") if matched_client else None,
-            "bank_id": detected_bank.get("id") if detected_bank else None,
-            "bank_name": detected_bank.get("name") if detected_bank else None,
+            "client_id": metadata['client'].get("id") if metadata.get('client') else None,
+            "client_name": metadata.get('owner_name'),
+            "bank_id": metadata['bank'].get("id") if metadata.get('bank') else None,
+            "bank_name": metadata.get('bank_name'),
             "period_month": period_month,
             "period_year": period_year,
             "owner_name": metadata.get("owner_name")
@@ -1359,29 +1137,27 @@ async def bulk_upload(
                 if working_password not in selected_client.get("passwords", []):
                     add_password_to_client(selected_client["id"], working_password)
 
-            # Extract text for auto-detection
-            text = extract_text_from_pdf(unlocked_pdf if is_unlocked else pdf_bytes)
+            # Extract metadata from filename (simple approach)
+            filename_metadata = extract_metadata_from_filename(file.filename, clients, banks)
 
-            # Determine client (pre-selected or auto-detected)
+            # Determine client (pre-selected > filename-detected)
             final_client = selected_client
-            if not final_client:
-                final_client = find_client_by_pattern(text, clients)
+            if not final_client and filename_metadata.get('client'):
+                final_client = filename_metadata['client']
 
-            # Determine bank (pre-selected or auto-detected)
+            # Determine bank (pre-selected > filename-detected)
             final_bank_name = bank_name
-            if not final_bank_name:
-                detected_bank = detect_bank_from_text(text, banks)
-                if detected_bank:
-                    final_bank_name = detected_bank.get("name")
+            if not final_bank_name and filename_metadata.get('bank_name'):
+                final_bank_name = filename_metadata['bank_name']
 
-            # Determine period (pre-selected or auto-detected)
+            # Determine period (pre-selected > filename-detected > current date)
             final_period = None
             if period_month and period_year:
                 final_period = f"{period_year}-{str(period_month).zfill(2)}"
+            elif filename_metadata.get('period'):
+                final_period = filename_metadata['period']
             else:
-                # Auto-detect from PDF
-                metadata = extract_metadata(unlocked_pdf if is_unlocked else pdf_bytes, clients)
-                final_period = metadata.get("period", datetime.now().strftime('%Y-%m'))
+                final_period = datetime.now().strftime('%Y-%m')
 
             # Build metadata for response
             result["metadata"] = {
