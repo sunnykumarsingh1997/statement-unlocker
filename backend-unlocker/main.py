@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Configuration with defaults
-PAPERLESS_URL = os.getenv("PAPERLESS_URL", "http://84.247.136.87:8000")
+PAPERLESS_URL = os.getenv("PAPERLESS_URL", "http://localhost:8000")
 PAPERLESS_TOKEN = os.getenv("PAPERLESS_TOKEN", "bb02a22ccce82096e308469bde1fd85c8d675a66")
 PASSWORDS_FILE = Path(__file__).parent / "passwords.txt"
 CLIENTS_FILE = Path(__file__).parent / "clients.json"
